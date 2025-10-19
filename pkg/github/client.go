@@ -52,7 +52,9 @@ func (c *Client) GetPR(ctx context.Context, owner, repo string, number int) (*co
 	if err != nil {
 		return nil, fmt.Errorf("failed to get PR: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() {
+		_ = resp.Body.Close()
+	}()
 
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
@@ -107,7 +109,9 @@ func (c *Client) CreateComment(ctx context.Context, owner, repo string, number i
 	if err != nil {
 		return nil, fmt.Errorf("failed to create comment: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() {
+		_ = resp.Body.Close()
+	}()
 
 	if resp.StatusCode != http.StatusCreated {
 		body, _ := io.ReadAll(resp.Body)
@@ -152,7 +156,9 @@ func (c *Client) UpdateComment(ctx context.Context, owner, repo string, commentI
 	if err != nil {
 		return fmt.Errorf("failed to update comment: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() {
+		_ = resp.Body.Close()
+	}()
 
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
@@ -178,7 +184,9 @@ func (c *Client) GetComments(ctx context.Context, owner, repo string, number int
 	if err != nil {
 		return nil, fmt.Errorf("failed to get comments: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() {
+		_ = resp.Body.Close()
+	}()
 
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)

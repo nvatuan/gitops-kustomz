@@ -33,15 +33,23 @@ func (d *Differ) unifiedDiff(base, head []byte) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("failed to create temp file: %w", err)
 	}
-	defer os.Remove(baseFile.Name())
-	defer baseFile.Close()
+	defer func() {
+		_ = os.Remove(baseFile.Name())
+	}()
+	defer func() {
+		_ = baseFile.Close()
+	}()
 
 	headFile, err := os.CreateTemp("", "head-*.yaml")
 	if err != nil {
 		return "", fmt.Errorf("failed to create temp file: %w", err)
 	}
-	defer os.Remove(headFile.Name())
-	defer headFile.Close()
+	defer func() {
+		_ = os.Remove(headFile.Name())
+	}()
+	defer func() {
+		_ = headFile.Close()
+	}()
 
 	// Write manifests to temp files
 	if _, err := baseFile.Write(base); err != nil {
@@ -61,7 +69,7 @@ func (d *Differ) unifiedDiff(base, head []byte) (string, error) {
 	// Run diff -u
 	cmd := exec.Command("diff", "-u", baseFile.Name(), headFile.Name())
 	output, err := cmd.CombinedOutput()
-	
+
 	// diff returns exit code 1 when files differ (not an error)
 	if err != nil {
 		if exitErr, ok := err.(*exec.ExitError); ok && exitErr.ExitCode() == 1 {
@@ -79,7 +87,8 @@ func (d *Differ) unifiedDiff(base, head []byte) (string, error) {
 	return diffOutput, nil
 }
 
-// simpleDiff creates a simple unified-style diff (fallback)
+// simpleDiff creates a simple unified-style diff (fallback - kept for future use)
+// nolint:unused
 func (d *Differ) simpleDiff(base, head []byte) (string, error) {
 	if bytes.Equal(base, head) {
 		return "", nil

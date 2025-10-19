@@ -75,13 +75,13 @@ type CommentData struct {
 
 // MultiEnvCommentData represents data for multi-environment template rendering
 type MultiEnvCommentData struct {
-	Service           string
-	Environments      []string
-	BaseCommit        string
-	HeadCommit        string
-	EnvironmentDiffs  []EnvironmentDiff
+	Service              string
+	Environments         []string
+	BaseCommit           string
+	HeadCommit           string
+	EnvironmentDiffs     []EnvironmentDiff
 	MultiEnvPolicyReport MultiEnvPolicyReport
-	Timestamp         time.Time
+	Timestamp            time.Time
 }
 
 // EnvironmentDiff represents diff data for a specific environment
@@ -109,7 +109,7 @@ type MultiEnvPolicyDetail struct {
 
 // EnvPolicyResult represents a policy result for one environment
 type EnvPolicyResult struct {
-	Status     string   // "PASS", "FAIL", "ERROR"
+	Status     string // "PASS", "FAIL", "ERROR"
 	Violations []string
 	Error      string
 	Overridden bool

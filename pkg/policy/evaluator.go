@@ -13,6 +13,17 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
+const (
+	POLICY_STATUS_PASS  = "PASS"
+	POLICY_STATUS_FAIL  = "FAIL"
+	POLICY_STATUS_ERROR = "ERROR"
+
+	POLICY_LEVEL_DISABLED  = "DISABLED"
+	POLICY_LEVEL_RECOMMEND = "RECOMMEND"
+	POLICY_LEVEL_WARNING   = "WARNING"
+	POLICY_LEVEL_BLOCK     = "BLOCK"
+)
+
 // Evaluator handles policy evaluation
 type Evaluator struct {
 	loader *config.Loader
@@ -74,11 +85,11 @@ func (e *Evaluator) Evaluate(ctx context.Context, manifest []byte, cfg *config.C
 		result.PolicyResults = append(result.PolicyResults, policyResult)
 
 		switch policyResult.Status {
-		case "PASS":
+		case POLICY_STATUS_PASS:
 			result.PassedPolicies++
-		case "FAIL":
+		case POLICY_STATUS_FAIL:
 			result.FailedPolicies++
-		case "ERROR":
+		case POLICY_STATUS_ERROR:
 			result.ErroredPolicies++
 		}
 	}
@@ -91,7 +102,7 @@ func (e *Evaluator) evaluatePolicy(ctx context.Context, id string, policy config
 	result := config.PolicyResult{
 		PolicyID:   id,
 		PolicyName: policy.Name,
-		Status:     "PASS",
+		Status:     POLICY_STATUS_PASS,
 		Violations: []config.Violation{},
 	}
 
@@ -107,7 +118,7 @@ func (e *Evaluator) evaluatePolicy(ctx context.Context, id string, policy config
 	policyPath := filepath.Join(policiesPath, policy.FilePath)
 	policyContent, err := os.ReadFile(policyPath)
 	if err != nil {
-		result.Status = "ERROR"
+		result.Status = POLICY_STATUS_ERROR
 		result.Error = fmt.Sprintf("Failed to read policy file: %v", err)
 		return result
 	}
@@ -116,7 +127,7 @@ func (e *Evaluator) evaluatePolicy(ctx context.Context, id string, policy config
 	for _, resource := range resources {
 		violations, err := e.evaluateResourceWithOPA(ctx, policyContent, resource)
 		if err != nil {
-			result.Status = "ERROR"
+			result.Status = POLICY_STATUS_ERROR
 			result.Error = fmt.Sprintf("Policy evaluation failed: %v", err)
 			return result
 		}
@@ -132,7 +143,7 @@ func (e *Evaluator) evaluatePolicy(ctx context.Context, id string, policy config
 
 	// Set status based on violations
 	if len(result.Violations) > 0 {
-		result.Status = "FAIL"
+		result.Status = POLICY_STATUS_FAIL
 	}
 
 	return result
@@ -223,25 +234,25 @@ func (e *Evaluator) determineEnforcementLevel(enforcement config.EnforcementConf
 
 	// Check if policy is in effect
 	if enforcement.InEffectAfter != nil && now.Before(*enforcement.InEffectAfter) {
-		return "DISABLED"
+		return POLICY_LEVEL_DISABLED
 	}
 
 	// Check blocking level
 	if enforcement.IsBlockingAfter != nil && !now.Before(*enforcement.IsBlockingAfter) {
-		return "BLOCK"
+		return POLICY_LEVEL_BLOCK
 	}
 
 	// Check warning level
 	if enforcement.IsWarningAfter != nil && !now.Before(*enforcement.IsWarningAfter) {
-		return "WARNING"
+		return POLICY_LEVEL_WARNING
 	}
 
 	// Default to recommend if in effect
 	if enforcement.InEffectAfter != nil {
-		return "RECOMMEND"
+		return POLICY_LEVEL_RECOMMEND
 	}
 
-	return "DISABLED"
+	return POLICY_LEVEL_DISABLED
 }
 
 // CheckOverrides checks PR comments for policy override commands
@@ -273,7 +284,7 @@ func (e *Evaluator) Enforce(result *config.EvaluationResult, overrides map[strin
 	warningCount := 0
 
 	for _, pr := range result.PolicyResults {
-		if pr.Status != "FAIL" {
+		if pr.Status != POLICY_STATUS_FAIL {
 			continue
 		}
 
@@ -283,10 +294,10 @@ func (e *Evaluator) Enforce(result *config.EvaluationResult, overrides map[strin
 		}
 
 		switch pr.Level {
-		case "BLOCK":
+		case POLICY_LEVEL_BLOCK:
 			blockingCount++
 			enforcement.ShouldBlock = true
-		case "WARNING":
+		case POLICY_LEVEL_WARNING:
 			warningCount++
 			enforcement.ShouldWarn = true
 		}

@@ -42,7 +42,7 @@ func (r *Renderer) RenderWithTemplates(templateDir string, data interface{}) (st
 
 	// Parse all templates with named templates
 	tmpl := template.New("").Funcs(r.funcMap)
-	
+
 	// Parse diff template as a named template
 	diffContent, err := os.ReadFile(diffPath)
 	if err != nil {

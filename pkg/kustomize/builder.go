@@ -9,6 +9,12 @@ import (
 	"time"
 )
 
+const (
+	KUSTOMIZE_BASE_DIR  = "base"
+	KUSTOMIZE_ENV_DIR   = "environments"
+	KUSTOMIZE_FILE_NAME = "kustomization.yaml"
+)
+
 // Builder handles kustomize builds
 type Builder struct{}
 
@@ -45,23 +51,23 @@ func (b *Builder) ValidateServiceEnvironment(manifestsPath, service, environment
 	}
 
 	// Check if base exists
-	basePath := filepath.Join(servicePath, "base")
+	basePath := filepath.Join(servicePath, KUSTOMIZE_BASE_DIR)
 	if _, err := os.Stat(basePath); os.IsNotExist(err) {
 		return fmt.Errorf("base directory not found for service '%s'", service)
 	}
 
-	baseKustomization := filepath.Join(basePath, "kustomization.yaml")
+	baseKustomization := filepath.Join(basePath, KUSTOMIZE_FILE_NAME)
 	if _, err := os.Stat(baseKustomization); os.IsNotExist(err) {
 		return fmt.Errorf("kustomization.yaml not found in base directory for service '%s'", service)
 	}
 
 	// Check if environment exists
-	envPath := filepath.Join(servicePath, "environments", environment)
+	envPath := filepath.Join(servicePath, KUSTOMIZE_ENV_DIR, environment)
 	if _, err := os.Stat(envPath); os.IsNotExist(err) {
 		return fmt.Errorf("environment '%s' not found for service '%s' (service may not be deployed to this environment)", environment, service)
 	}
 
-	envKustomization := filepath.Join(envPath, "kustomization.yaml")
+	envKustomization := filepath.Join(envPath, KUSTOMIZE_FILE_NAME)
 	if _, err := os.Stat(envKustomization); os.IsNotExist(err) {
 		return fmt.Errorf("kustomization.yaml not found in environment '%s' for service '%s'", environment, service)
 	}
@@ -71,5 +77,5 @@ func (b *Builder) ValidateServiceEnvironment(manifestsPath, service, environment
 
 // GetServiceEnvironmentPath returns the path to build for a service/environment
 func (b *Builder) GetServiceEnvironmentPath(manifestsPath, service, environment string) string {
-	return filepath.Join(manifestsPath, service, "environments", environment)
+	return filepath.Join(manifestsPath, service, KUSTOMIZE_ENV_DIR, environment)
 }
