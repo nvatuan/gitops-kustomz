@@ -32,53 +32,11 @@
 
 ---
 
-## 📝 Manifest Diff
-
-{{if .Diff.HasChanges}}
-{{if gt .Diff.LineCount 50}}
-<details>
-<summary>Click to expand diff ({{.Diff.LineCount}} lines)</summary>
-
-```diff
-{{.Diff.Content}}
-```
-
-</details>
-{{else}}
-```diff
-{{.Diff.Content}}
-```
-{{end}}
-{{else}}
-_No changes detected between base and head._
-{{end}}
+{{template "diff" .Diff}}
 
 ---
 
-## 🛡️ Policy Evaluation Results
-
-{{range .PolicyReport.Details}}
-### {{.Name}} - {{.Status}} {{if .Overridden}}(Overridden){{end}}
-
-**Level:** {{.Level}}
-
-{{if eq .Status "ERROR"}}
-⚠️ **Error:** {{.Error}}
-{{else if eq .Status "FAIL"}}
-{{if .Overridden}}
-✋ **Policy failed but was overridden**
-{{else}}
-❌ **Policy violations:**
-{{range .Violations}}
-- {{.}}
-{{end}}
-{{end}}
-{{else}}
-✅ **Passed**
-{{end}}
-
----
-{{end}}
+{{template "policy" .PolicyReport}}
 
 ---
 

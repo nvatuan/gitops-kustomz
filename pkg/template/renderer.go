@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"os"
+	"path/filepath"
 	"text/template"
 )
 
@@ -19,6 +20,46 @@ func NewRenderer() *Renderer {
 			"gt": func(a, b int) bool { return a > b },
 		},
 	}
+}
+
+// RenderWithTemplates renders templates with support for includes
+func (r *Renderer) RenderWithTemplates(templateDir string, data interface{}) (string, error) {
+	// Load all template files
+	commentPath := filepath.Join(templateDir, "comment.md.tmpl")
+	diffPath := filepath.Join(templateDir, "diff.md.tmpl")
+	policyPath := filepath.Join(templateDir, "policy.md.tmpl")
+
+	// Check if all templates exist
+	if _, err := os.Stat(commentPath); err != nil {
+		return "", fmt.Errorf("comment template not found: %w", err)
+	}
+	if _, err := os.Stat(diffPath); err != nil {
+		return "", fmt.Errorf("diff template not found: %w", err)
+	}
+	if _, err := os.Stat(policyPath); err != nil {
+		return "", fmt.Errorf("policy template not found: %w", err)
+	}
+
+	// Parse all templates
+	tmpl, err := template.New("comment.md.tmpl").Funcs(r.funcMap).ParseFiles(commentPath, diffPath, policyPath)
+	if err != nil {
+		return "", fmt.Errorf("failed to parse templates: %w", err)
+	}
+
+	// Define template names for included templates
+	if _, err := tmpl.New("diff").Parse(`{{define "diff"}}{{template "diff.md.tmpl" .}}{{end}}`); err != nil {
+		return "", fmt.Errorf("failed to define diff template: %w", err)
+	}
+	if _, err := tmpl.New("policy").Parse(`{{define "policy"}}{{template "policy.md.tmpl" .}}{{end}}`); err != nil {
+		return "", fmt.Errorf("failed to define policy template: %w", err)
+	}
+
+	var buf bytes.Buffer
+	if err := tmpl.Execute(&buf, data); err != nil {
+		return "", fmt.Errorf("failed to execute template: %w", err)
+	}
+
+	return buf.String(), nil
 }
 
 // Render renders a template file with the provided data

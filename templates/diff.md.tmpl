@@ -1,0 +1,21 @@
+## 📝 Manifest Diff
+
+{{if .HasChanges}}
+{{if gt .LineCount 50}}
+<details>
+<summary>Click to expand diff ({{.LineCount}} lines)</summary>
+
+```diff
+{{.Content}}
+```
+
+</details>
+{{else}}
+```diff
+{{.Content}}
+```
+{{end}}
+{{else}}
+_No changes detected between base and head._
+{{end}}
+
