@@ -63,3 +63,4 @@ As of now, the intended usecase for this tool is to:
 - It must support testing in Local where CI commenting is not possible by provide some short of interface instead of the PR, for example, a structure of folder with before, after with kustomize manifest inside, after triggers, the tool output some markdown files and developers can think that those output are github comments.
 - It must apply programming patterns that is allow high expendability
 
+

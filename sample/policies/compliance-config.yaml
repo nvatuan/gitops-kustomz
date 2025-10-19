@@ -6,9 +6,9 @@ policies:
     filePath: ha.opa
 
     enforcement:
-      inEffectAfter: 2025-11-11T00:00:00Z
+      inEffectAfter: 2025-10-11T00:00:00Z
       isWarningAfter: 2026-01-14T00:00:00Z
-      isBlockingAfter: 2025-02-14T00:00:00Z
+      isBlockingAfter: 2026-02-14T00:00:00Z
 
       override:
         comment: "/sp-override-ha"
@@ -20,9 +20,9 @@ policies:
     filePath: ingress-tls.opa
 
     enforcement:
-      inEffectAfter: 2025-11-11T00:00:00Z
+      inEffectAfter: 2025-10-11T00:00:00Z
       isWarningAfter: 2026-01-14T00:00:00Z
-      isBlockingAfter: 2025-02-14T00:00:00Z
+      isBlockingAfter: 2026-02-14T00:00:00Z
 
       override:
         comment: "/sp-override-tls"
