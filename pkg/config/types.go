@@ -65,12 +65,65 @@ type EnforcementResult struct {
 // CommentData represents data for template rendering
 type CommentData struct {
 	Service      string
-	Environment  string
+	Environment  string // Deprecated: use Environments for multi-env
 	BaseCommit   string
 	HeadCommit   string
 	Diff         DiffData
 	PolicyReport PolicyReportData
 	Timestamp    time.Time
+}
+
+// MultiEnvCommentData represents data for multi-environment template rendering
+type MultiEnvCommentData struct {
+	Service           string
+	Environments      []string
+	BaseCommit        string
+	HeadCommit        string
+	EnvironmentDiffs  []EnvironmentDiff
+	MultiEnvPolicyReport MultiEnvPolicyReport
+	Timestamp         time.Time
+}
+
+// EnvironmentDiff represents diff data for a specific environment
+type EnvironmentDiff struct {
+	Environment string
+	HasChanges  bool
+	Content     string
+	LineCount   int
+}
+
+// MultiEnvPolicyReport represents policy results across multiple environments
+type MultiEnvPolicyReport struct {
+	Environments []string
+	Policies     []MultiEnvPolicyDetail
+	Summary      map[string]EnvSummary // env -> summary
+}
+
+// MultiEnvPolicyDetail represents a policy's results across environments
+type MultiEnvPolicyDetail struct {
+	Name        string
+	Description string
+	Level       string
+	Results     map[string]EnvPolicyResult // env -> result
+}
+
+// EnvPolicyResult represents a policy result for one environment
+type EnvPolicyResult struct {
+	Status     string   // "PASS", "FAIL", "ERROR"
+	Violations []string
+	Error      string
+	Overridden bool
+}
+
+// EnvSummary represents a summary for one environment
+type EnvSummary struct {
+	TotalPolicies     int
+	PassedPolicies    int
+	FailedPolicies    int
+	ErroredPolicies   int
+	BlockingFailures  int
+	WarningFailures   int
+	RecommendFailures int
 }
 
 // DiffData represents diff information
