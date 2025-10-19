@@ -3,6 +3,8 @@ package diff
 import (
 	"bytes"
 	"fmt"
+	"os"
+	"os/exec"
 	"strings"
 )
 
@@ -16,11 +18,68 @@ func NewDiffer() *Differ {
 
 // Diff compares two manifests and returns a unified diff
 func (d *Differ) Diff(base, head []byte) (string, error) {
-	// Use simple diff implementation
-	return d.simpleDiff(base, head)
+	// Use system diff -u for unified diff with context
+	return d.unifiedDiff(base, head)
 }
 
-// simpleDiff creates a simple unified-style diff
+// unifiedDiff uses system diff -u command for proper unified diff with context
+func (d *Differ) unifiedDiff(base, head []byte) (string, error) {
+	if bytes.Equal(base, head) {
+		return "", nil
+	}
+
+	// Create temp files for diff
+	baseFile, err := os.CreateTemp("", "base-*.yaml")
+	if err != nil {
+		return "", fmt.Errorf("failed to create temp file: %w", err)
+	}
+	defer os.Remove(baseFile.Name())
+	defer baseFile.Close()
+
+	headFile, err := os.CreateTemp("", "head-*.yaml")
+	if err != nil {
+		return "", fmt.Errorf("failed to create temp file: %w", err)
+	}
+	defer os.Remove(headFile.Name())
+	defer headFile.Close()
+
+	// Write manifests to temp files
+	if _, err := baseFile.Write(base); err != nil {
+		return "", fmt.Errorf("failed to write base manifest: %w", err)
+	}
+	if err := baseFile.Close(); err != nil {
+		return "", fmt.Errorf("failed to close base file: %w", err)
+	}
+
+	if _, err := headFile.Write(head); err != nil {
+		return "", fmt.Errorf("failed to write head manifest: %w", err)
+	}
+	if err := headFile.Close(); err != nil {
+		return "", fmt.Errorf("failed to close head file: %w", err)
+	}
+
+	// Run diff -u
+	cmd := exec.Command("diff", "-u", baseFile.Name(), headFile.Name())
+	output, err := cmd.CombinedOutput()
+	
+	// diff returns exit code 1 when files differ (not an error)
+	if err != nil {
+		if exitErr, ok := err.(*exec.ExitError); ok && exitErr.ExitCode() == 1 {
+			// This is expected when files differ
+		} else {
+			return "", fmt.Errorf("diff command failed: %w", err)
+		}
+	}
+
+	// Replace temp file names with "base" and "head"
+	diffOutput := string(output)
+	diffOutput = strings.ReplaceAll(diffOutput, baseFile.Name(), "base")
+	diffOutput = strings.ReplaceAll(diffOutput, headFile.Name(), "head")
+
+	return diffOutput, nil
+}
+
+// simpleDiff creates a simple unified-style diff (fallback)
 func (d *Differ) simpleDiff(base, head []byte) (string, error) {
 	if bytes.Equal(base, head) {
 		return "", nil
