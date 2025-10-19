@@ -1,25 +1,29 @@
 ## 🛡️ Policy Evaluation Results
 
-{{range .Details}}
-### {{.Name}} - {{.Status}} {{if .Overridden}}(Overridden){{end}}
+**Summary:** {{.Summary}}
 
-**Level:** {{.Level}}
-
-{{if eq .Status "ERROR"}}
-⚠️ **Error:** {{.Error}}
-{{else if eq .Status "FAIL"}}
-{{if .Overridden}}
-✋ **Policy failed but was overridden**
-{{else}}
-❌ **Policy violations:**
-{{range .Violations}}
-- {{.}}
-{{end}}
-{{end}}
-{{else}}
-✅ **Passed**
+| Policy | Status | Enforcement | Message |
+|--------|--------|-------------|---------|
+{{range .Results}}| {{.PolicyName}} | {{.Status}} | {{.EnforcementLevel}} | {{.Message}} |
 {{end}}
 
----
+{{if .HasFailures}}
+### ⚠️ Failed Policies
+
+{{range .Results}}{{if eq .Status "❌ FAILED"}}
+#### {{.PolicyName}}
+- **Enforcement:** {{.EnforcementLevel}}
+- **Message:** {{.Message}}
+{{if .Details}}- **Details:** {{.Details}}{{end}}
+{{end}}{{end}}
+{{end}}
+
+{{if .HasErrors}}
+### ❌ Errored Policies
+
+{{range .Results}}{{if eq .Status "💥 ERROR"}}
+#### {{.PolicyName}}
+- **Error:** {{.Error}}
+{{end}}{{end}}
 {{end}}
 
