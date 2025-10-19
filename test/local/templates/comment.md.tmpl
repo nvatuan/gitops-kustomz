@@ -10,6 +10,7 @@
 
 ## 📊 Manifest Changes
 
+{{if .EnvironmentDiffs}}
 {{range .EnvironmentDiffs}}
 ### {{.Environment}}
 
@@ -28,6 +29,9 @@
 ✅ No changes detected.
 {{end}}
 
+{{end}}
+{{else}}
+✅ No changes detected.
 {{end}}
 
 ---
