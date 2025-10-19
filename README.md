@@ -1,6 +1,11 @@
 # gitops-kustomz
 
+<p align="center">
+  <img src="docs/gitops-kustomz-rec.png" alt="gitops-kustomz logo" width="200"/>
+</p>
+
 GitOps policy enforcement tool for Kubernetes manifests managed with Kustomize.
+
 
 ## Overview
 
