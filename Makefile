@@ -36,14 +36,14 @@ run: build
 run-local: build
 	./${BINARY_NAME} --run-mode local \
 		--service my-app \
-		--environment stg \
-		--lc-before test/local/before/services/my-app/environments/stg \
-		--lc-after test/local/after/services/my-app/environments/stg \
+		--environments stg,prod \
+		--lc-before test/local/before/services/my-app/environments \
+		--lc-after test/local/after/services/my-app/environments \
 		--policies-path sample/policies \
 		--lc-output-dir test/output
 	@echo ""
-	@echo "📄 Report generated:"
-	@cat test/output/my-app-stg-report.md
+	@echo "📄 Reports generated:"
+	@ls -lh test/output/*.md
 
 # OPA policy tests
 test-policies:

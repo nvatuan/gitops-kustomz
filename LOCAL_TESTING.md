@@ -2,45 +2,50 @@
 
 ## Running gitops-kustomz in Local Mode
 
-Local mode allows you to test the tool without GitHub PR integration. The tool will run `kustomize build` internally.
+Local mode allows you to test the tool without GitHub PR integration. The tool will run `kustomize build` internally and supports checking multiple environments in a single run.
 
 ### Quick Start with Test Data
 
 ```bash
-# Run directly on kustomize directories (recommended)
+# Check multiple environments at once
 ./gitops-kustomz --run-mode local \
   --service my-app \
-  --environment stg \
-  --lc-before test/local/before/services/my-app/environments/stg \
-  --lc-after test/local/after/services/my-app/environments/stg \
+  --environments stg,prod \
+  --lc-before test/local/before/services/my-app/environments \
+  --lc-after test/local/after/services/my-app/environments \
   --policies-path sample/policies \
   --lc-output-dir test/output
 
-# View the report
+# Check single environment
+./gitops-kustomz --run-mode local \
+  --service my-app \
+  --environments stg \
+  --lc-before test/local/before/services/my-app/environments \
+  --lc-after test/local/after/services/my-app/environments \
+  --policies-path sample/policies \
+  --lc-output-dir test/output
+
+# View the reports
+ls -lh test/output/
 cat test/output/my-app-stg-report.md
+cat test/output/my-app-prod-report.md
 ```
 
-### Testing Different Environments
+### Directory Structure
 
-```bash
-# Test prod environment
-./gitops-kustomz --run-mode local \
-  --service my-app \
-  --environment prod \
-  --lc-before test/local/before/services/my-app/environments/prod \
-  --lc-after test/local/after/services/my-app/environments/prod \
-  --policies-path sample/policies \
-  --lc-output-dir test/output
+The tool expects environment-specific directories under the base paths:
 
-# Test sandbox environment
-./gitops-kustomz --run-mode local \
-  --service my-app \
-  --environment sandbox \
-  --lc-before test/local/before/services/my-app/environments/sandbox \
-  --lc-after test/local/after/services/my-app/environments/sandbox \
-  --policies-path sample/policies \
-  --lc-output-dir test/output
 ```
+test/local/
+├── before/services/my-app/environments/
+│   ├── stg/           # kustomization for staging
+│   └── prod/          # kustomization for production
+└── after/services/my-app/environments/
+    ├── stg/           # kustomization for staging
+    └── prod/          # kustomization for production
+```
+
+Each environment directory should contain a valid `kustomization.yaml`.
 
 ### Using Custom Templates
 
@@ -48,9 +53,9 @@ cat test/output/my-app-stg-report.md
 # Use custom templates directory
 ./gitops-kustomz --run-mode local \
   --service my-app \
-  --environment stg \
-  --lc-before test/local/before/services/my-app/environments/stg \
-  --lc-after test/local/after/services/my-app/environments/stg \
+  --environments stg,prod \
+  --lc-before test/local/before/services/my-app/environments \
+  --lc-after test/local/after/services/my-app/environments \
   --policies-path sample/policies \
   --templates-path ./my-custom-templates \
   --lc-output-dir test/output
@@ -59,15 +64,28 @@ cat test/output/my-app-stg-report.md
 ### One-Liner for Quick Testing
 
 ```bash
-# Test and view report in one command
+# Test and view reports in one command
 ./gitops-kustomz --run-mode local \
-  --service my-app --environment stg \
-  --lc-before test/local/before/services/my-app/environments/stg \
-  --lc-after test/local/after/services/my-app/environments/stg \
+  --service my-app --environments stg,prod \
+  --lc-before test/local/before/services/my-app/environments \
+  --lc-after test/local/after/services/my-app/environments \
   --policies-path sample/policies \
   --lc-output-dir test/output && \
-cat test/output/my-app-stg-report.md
+ls -lh test/output/
 ```
+
+### Using Make
+
+The Makefile includes a convenient target:
+
+```bash
+make run-local
+```
+
+This will:
+1. Build the binary
+2. Run checks for `stg` and `prod` environments
+3. Display the generated reports
 
 ## Expected Output
 
