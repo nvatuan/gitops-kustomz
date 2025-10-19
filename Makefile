@@ -1,7 +1,8 @@
 .PHONY: build test lint clean install run-local
 
-# Binary name
+# Binary name and paths
 BINARY_NAME=gitops-kustomz
+BIN_DIR=bin
 MAIN_PATH=./cmd/gitops-kustomz
 
 # Build variables
@@ -10,10 +11,11 @@ BUILD_TIME=$(shell date -u '+%Y-%m-%d_%H:%M:%S')
 LDFLAGS=-ldflags "-X main.Version=${VERSION} -X main.BuildTime=${BUILD_TIME}"
 
 build:
-	go build ${LDFLAGS} -o ${BINARY_NAME} ${MAIN_PATH}
+	@mkdir -p ${BIN_DIR}
+	go build ${LDFLAGS} -o ${BIN_DIR}/${BINARY_NAME} ${MAIN_PATH}
 
 install: build
-	mv ${BINARY_NAME} $(GOPATH)/bin/
+	cp ${BIN_DIR}/${BINARY_NAME} $(GOPATH)/bin/
 
 test:
 	go test -v -race -coverprofile=coverage.txt -covermode=atomic ./...
@@ -25,16 +27,16 @@ lint:
 	golangci-lint run ./...
 
 clean:
-	rm -f ${BINARY_NAME}
+	rm -rf ${BIN_DIR}
 	rm -f coverage.txt coverage.html
 	rm -rf dist/
 
 run: build
-	./${BINARY_NAME}
+	${BIN_DIR}/${BINARY_NAME}
 
 # Run in local mode with test data
 run-local: build
-	./${BINARY_NAME} --run-mode local \
+	${BIN_DIR}/${BINARY_NAME} --run-mode local \
 		--service my-app \
 		--environments stg,prod \
 		--lc-before test/local/before/services/my-app/environments \
