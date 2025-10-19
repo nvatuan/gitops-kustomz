@@ -1,4 +1,4 @@
-.PHONY: build test lint clean install
+.PHONY: build test lint clean install run-local
 
 # Binary name
 BINARY_NAME=gitops-kustomz
@@ -32,6 +32,19 @@ clean:
 run: build
 	./${BINARY_NAME}
 
+# Run in local mode with test data
+run-local: build
+	./${BINARY_NAME} --run-mode local \
+		--service my-app \
+		--environment stg \
+		--lc-before test/local/before/services/my-app/environments/stg \
+		--lc-after test/local/after/services/my-app/environments/stg \
+		--policies-path sample/policies \
+		--lc-output-dir test/output
+	@echo ""
+	@echo "📄 Report generated:"
+	@cat test/output/my-app-stg-report.md
+
 # OPA policy tests
 test-policies:
 	opa test sample/policies/*.opa
@@ -56,6 +69,7 @@ help:
 	@echo "  test-coverage  - Generate HTML coverage report"
 	@echo "  lint           - Run linter"
 	@echo "  clean          - Clean build artifacts"
+	@echo "  run-local      - Run in local mode with test data"
 	@echo "  test-policies  - Test OPA policies"
 	@echo "  fmt            - Format code"
 	@echo "  security       - Check for security issues"
