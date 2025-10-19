@@ -1,28 +1,24 @@
 ## 🛡️ Policy Evaluation Results
 
-**Summary:** {{.Summary}}
+**Total Policies:** {{.TotalPolicies}} | **Passed:** {{.PassedPolicies}} | **Failed:** {{.FailedPolicies}} | **Errored:** {{.ErroredPolicies}}
 
-| Policy | Status | Enforcement | Message |
-|--------|--------|-------------|---------|
-{{range .Results}}| {{.PolicyName}} | {{.Status}} | {{.EnforcementLevel}} | {{.Message}} |
+{{if gt .FailedPolicies 0}}
+**Failures by Level:**
+{{if gt .BlockingFailures 0}}- 🚫 **Blocking:** {{.BlockingFailures}}{{end}}
+{{if gt .WarningFailures 0}}- ⚠️  **Warning:** {{.WarningFailures}}{{end}}
+{{if gt .RecommendFailures 0}}- 💡 **Recommend:** {{.RecommendFailures}}{{end}}
 {{end}}
 
-{{if .HasFailures}}
-### ⚠️ Failed Policies
-
-{{range .Results}}{{if eq .Status "❌ FAILED"}}
-#### {{.PolicyName}}
-- **Enforcement:** {{.EnforcementLevel}}
-- **Message:** {{.Message}}
-{{if .Details}}- **Details:** {{.Details}}{{end}}
-{{end}}{{end}}
+| Policy | Status | Enforcement | {{if gt .FailedPolicies 0}}Violations{{end}} |
+|--------|--------|-------------|{{if gt .FailedPolicies 0}}----------{{end}}|
+{{range .Details}}| {{.Name}} | {{.Status}} | {{.Level}} | {{if ne .Status "PASS"}}{{range .Violations}}{{.}}; {{end}}{{end}} |
 {{end}}
 
-{{if .HasErrors}}
+{{if gt .ErroredPolicies 0}}
 ### ❌ Errored Policies
 
-{{range .Results}}{{if eq .Status "💥 ERROR"}}
-#### {{.PolicyName}}
+{{range .Details}}{{if eq .Status "ERROR"}}
+#### {{.Name}}
 - **Error:** {{.Error}}
 {{end}}{{end}}
 {{end}}

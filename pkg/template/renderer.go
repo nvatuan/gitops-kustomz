@@ -40,22 +40,39 @@ func (r *Renderer) RenderWithTemplates(templateDir string, data interface{}) (st
 		return "", fmt.Errorf("policy template not found: %w", err)
 	}
 
-	// Parse all templates
-	tmpl, err := template.New("comment.md.tmpl").Funcs(r.funcMap).ParseFiles(commentPath, diffPath, policyPath)
+	// Parse all templates with named templates
+	tmpl := template.New("").Funcs(r.funcMap)
+	
+	// Parse diff template as a named template
+	diffContent, err := os.ReadFile(diffPath)
 	if err != nil {
-		return "", fmt.Errorf("failed to parse templates: %w", err)
+		return "", fmt.Errorf("failed to read diff template: %w", err)
+	}
+	if _, err := tmpl.New("diff").Parse(string(diffContent)); err != nil {
+		return "", fmt.Errorf("failed to parse diff template: %w", err)
 	}
 
-	// Define template names for included templates
-	if _, err := tmpl.New("diff").Parse(`{{define "diff"}}{{template "diff.md.tmpl" .}}{{end}}`); err != nil {
-		return "", fmt.Errorf("failed to define diff template: %w", err)
+	// Parse policy template as a named template
+	policyContent, err := os.ReadFile(policyPath)
+	if err != nil {
+		return "", fmt.Errorf("failed to read policy template: %w", err)
 	}
-	if _, err := tmpl.New("policy").Parse(`{{define "policy"}}{{template "policy.md.tmpl" .}}{{end}}`); err != nil {
-		return "", fmt.Errorf("failed to define policy template: %w", err)
+	if _, err := tmpl.New("policy").Parse(string(policyContent)); err != nil {
+		return "", fmt.Errorf("failed to parse policy template: %w", err)
+	}
+
+	// Parse main comment template
+	commentContent, err := os.ReadFile(commentPath)
+	if err != nil {
+		return "", fmt.Errorf("failed to read comment template: %w", err)
+	}
+	mainTmpl, err := tmpl.New("comment").Parse(string(commentContent))
+	if err != nil {
+		return "", fmt.Errorf("failed to parse comment template: %w", err)
 	}
 
 	var buf bytes.Buffer
-	if err := tmpl.Execute(&buf, data); err != nil {
+	if err := mainTmpl.Execute(&buf, data); err != nil {
 		return "", fmt.Errorf("failed to execute template: %w", err)
 	}
 
