@@ -23,7 +23,7 @@ func (b *Builder) Build(ctx context.Context, path string) ([]byte, error) {
 
 	cmd := exec.CommandContext(ctx, "kustomize", "build", path)
 	output, err := cmd.CombinedOutput()
-	
+
 	duration := time.Since(start)
 	if duration > 2*time.Second {
 		fmt.Fprintf(os.Stderr, "Warning: kustomize build took %v (>2s target)\n", duration)
@@ -73,4 +73,3 @@ func (b *Builder) ValidateServiceEnvironment(manifestsPath, service, environment
 func (b *Builder) GetServiceEnvironmentPath(manifestsPath, service, environment string) string {
 	return filepath.Join(manifestsPath, service, "environments", environment)
 }
-

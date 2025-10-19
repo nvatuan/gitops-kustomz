@@ -2,16 +2,34 @@
 
 ## Running gitops-kustomz in Local Mode
 
-Local mode allows you to test the tool without GitHub PR integration.
+Local mode allows you to test the tool without GitHub PR integration. The tool will run `kustomize build` internally.
 
 ### Quick Start with Test Data
 
 ```bash
-# 1. Build manifests from before/after test data
+# Run directly on kustomize directories (recommended)
+./gitops-kustomz --local-mode \
+  --service my-app \
+  --environment stg \
+  --base-manifest test/local/before/services/my-app/environments/stg \
+  --head-manifest test/local/after/services/my-app/environments/stg \
+  --policies-path sample/policies \
+  --local-output-dir test/output
+
+# View the report
+cat test/output/my-app-stg-report.md
+```
+
+### Alternative: Using Pre-built Manifests
+
+If you prefer to build manifests separately:
+
+```bash
+# 1. Build manifests manually
 kustomize build test/local/before/services/my-app/environments/stg > /tmp/before.yaml
 kustomize build test/local/after/services/my-app/environments/stg > /tmp/after.yaml
 
-# 2. Run the tool in local mode
+# 2. Run the tool with pre-built manifests
 ./gitops-kustomz --local-mode \
   --service my-app \
   --environment stg \
@@ -19,35 +37,26 @@ kustomize build test/local/after/services/my-app/environments/stg > /tmp/after.y
   --head-manifest /tmp/after.yaml \
   --policies-path sample/policies \
   --local-output-dir test/output
-
-# 3. View the report
-cat test/output/my-app-stg-report.md
 ```
 
 ### Testing Different Environments
 
 ```bash
 # Test prod environment
-kustomize build test/local/before/services/my-app/environments/prod > /tmp/before-prod.yaml
-kustomize build test/local/after/services/my-app/environments/prod > /tmp/after-prod.yaml
-
 ./gitops-kustomz --local-mode \
   --service my-app \
   --environment prod \
-  --base-manifest /tmp/before-prod.yaml \
-  --head-manifest /tmp/after-prod.yaml \
+  --base-manifest test/local/before/services/my-app/environments/prod \
+  --head-manifest test/local/after/services/my-app/environments/prod \
   --policies-path sample/policies \
   --local-output-dir test/output
 
 # Test sandbox environment
-kustomize build test/local/before/services/my-app/environments/sandbox > /tmp/before-sandbox.yaml
-kustomize build test/local/after/services/my-app/environments/sandbox > /tmp/after-sandbox.yaml
-
 ./gitops-kustomz --local-mode \
   --service my-app \
   --environment sandbox \
-  --base-manifest /tmp/before-sandbox.yaml \
-  --head-manifest /tmp/after-sandbox.yaml \
+  --base-manifest test/local/before/services/my-app/environments/sandbox \
+  --head-manifest test/local/after/services/my-app/environments/sandbox \
   --policies-path sample/policies \
   --local-output-dir test/output
 ```
@@ -69,13 +78,11 @@ kustomize build test/local/after/services/my-app/environments/sandbox > /tmp/aft
 ### One-Liner for Quick Testing
 
 ```bash
-# Build and test in one command
-kustomize build test/local/before/services/my-app/environments/stg > /tmp/before.yaml && \
-kustomize build test/local/after/services/my-app/environments/stg > /tmp/after.yaml && \
+# Test and view report in one command
 ./gitops-kustomz --local-mode \
   --service my-app --environment stg \
-  --base-manifest /tmp/before.yaml \
-  --head-manifest /tmp/after.yaml \
+  --base-manifest test/local/before/services/my-app/environments/stg \
+  --head-manifest test/local/after/services/my-app/environments/stg \
   --policies-path sample/policies \
   --local-output-dir test/output && \
 cat test/output/my-app-stg-report.md
@@ -87,6 +94,8 @@ cat test/output/my-app-stg-report.md
 📋 Loading policy configuration...
 ✅ Loaded 2 policies
 🏠 Running in local mode
+🔨 Building base manifest from kustomize directory...
+🔨 Building head manifest from kustomize directory...
 📊 Generating diff...
    10 lines changed
 🛡️  Evaluating policies...

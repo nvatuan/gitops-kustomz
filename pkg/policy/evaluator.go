@@ -311,4 +311,3 @@ func (e *Evaluator) ApplyOverrides(result *config.EvaluationResult, overrides ma
 		}
 	}
 }
-

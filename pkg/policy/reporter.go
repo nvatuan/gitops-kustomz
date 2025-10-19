@@ -55,4 +55,3 @@ func (r *Reporter) GenerateReport(result *config.EvaluationResult) *config.Polic
 
 	return report
 }
-
