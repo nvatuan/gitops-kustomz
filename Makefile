@@ -56,8 +56,8 @@ run-local: build
 	${BIN_DIR}/${BINARY_NAME} --run-mode local \
 		--service my-app \
 		--environments stg,prod \
-		--lc-before test/local/before/services/my-app/environments \
-		--lc-after test/local/after/services/my-app/environments \
+		--lc-before-manifests-path test/local/before/services \
+		--lc-after-manifests-path test/local/after/services \
 		--policies-path sample/policies \
 		--templates-path src/templates \
 		--lc-output-dir test/output

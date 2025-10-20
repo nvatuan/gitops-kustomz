@@ -11,8 +11,8 @@ Local mode allows you to test the tool without GitHub PR integration. The tool w
 ./gitops-kustomz --run-mode local \
   --service my-app \
   --environments stg,prod \
-  --lc-before test/local/before/services/my-app/environments \
-  --lc-after test/local/after/services/my-app/environments \
+  --lc-before-manifests-path test/local/before/services \
+  --lc-after-manifests-path test/local/after/services \
   --policies-path sample/policies \
   --lc-output-dir test/output
 
@@ -20,8 +20,8 @@ Local mode allows you to test the tool without GitHub PR integration. The tool w
 ./gitops-kustomz --run-mode local \
   --service my-app \
   --environments stg \
-  --lc-before test/local/before/services/my-app/environments \
-  --lc-after test/local/after/services/my-app/environments \
+  --lc-before-manifests-path test/local/before/services \
+  --lc-after-manifests-path test/local/after/services \
   --policies-path sample/policies \
   --lc-output-dir test/output
 
@@ -54,8 +54,8 @@ Each environment directory should contain a valid `kustomization.yaml`.
 ./gitops-kustomz --run-mode local \
   --service my-app \
   --environments stg,prod \
-  --lc-before test/local/before/services/my-app/environments \
-  --lc-after test/local/after/services/my-app/environments \
+  --lc-before-manifests-path test/local/before/services \
+  --lc-after-manifests-path test/local/after/services \
   --policies-path sample/policies \
   --templates-path ./my-custom-templates \
   --lc-output-dir test/output
@@ -67,8 +67,8 @@ Each environment directory should contain a valid `kustomization.yaml`.
 # Test and view reports in one command
 ./gitops-kustomz --run-mode local \
   --service my-app --environments stg,prod \
-  --lc-before test/local/before/services/my-app/environments \
-  --lc-after test/local/after/services/my-app/environments \
+  --lc-before-manifests-path test/local/before/services \
+  --lc-after-manifests-path test/local/after/services \
   --policies-path sample/policies \
   --lc-output-dir test/output && \
 ls -lh test/output/

@@ -34,13 +34,14 @@ type options struct {
 	templatesPath string
 
 	// GitHub mode options
-	ghRepo     string
-	ghPrNumber int
+	ghRepo        string
+	ghPrNumber    int
+	manifestsPath string // Path to services directory (default: ./services)
 
 	// Local mode options
-	lcBeforePath string
-	lcAfterPath  string
-	lcOutputDir  string
+	lcBeforeManifestsPath string
+	lcAfterManifestsPath  string
+	lcOutputDir           string
 }
 
 type envData struct {
@@ -84,10 +85,11 @@ It builds kustomize manifests, diffs them, evaluates OPA policies, and posts det
 	// GitHub mode flags
 	cmd.Flags().StringVar(&opts.ghRepo, "gh-repo", "", "GitHub repository (e.g., org/repo) [github mode]")
 	cmd.Flags().IntVar(&opts.ghPrNumber, "gh-pr-number", 0, "GitHub PR number [github mode]")
+	cmd.Flags().StringVar(&opts.manifestsPath, "manifests-path", "./services", "Path to services directory containing service folders [github mode]")
 
 	// Local mode flags
-	cmd.Flags().StringVar(&opts.lcBeforePath, "lc-before", "", "Path to before/base kustomize directory [local mode]")
-	cmd.Flags().StringVar(&opts.lcAfterPath, "lc-after", "", "Path to after/head kustomize directory [local mode]")
+	cmd.Flags().StringVar(&opts.lcBeforeManifestsPath, "lc-before-manifests-path", "", "Path to before/base services directory [local mode]")
+	cmd.Flags().StringVar(&opts.lcAfterManifestsPath, "lc-after-manifests-path", "", "Path to after/head services directory [local mode]")
 	cmd.Flags().StringVar(&opts.lcOutputDir, "lc-output-dir", "./output", "Local mode output directory [local mode]")
 
 	// Mark required flags
@@ -260,18 +262,18 @@ func processEnvironment(
 		// Local mode: build from kustomize directories
 		fmt.Println("🏠 Running in local mode")
 
-		// Build paths for this environment
-		beforeEnvPath := filepath.Join(opts.lcBeforePath, environment)
-		afterEnvPath := filepath.Join(opts.lcAfterPath, environment)
+		// Build paths: lcBeforeManifestsPath/service/environments/env
+		beforeServicePath := filepath.Join(opts.lcBeforeManifestsPath, opts.service, "environments", environment)
+		afterServicePath := filepath.Join(opts.lcAfterManifestsPath, opts.service, "environments", environment)
 
-		fmt.Printf("🔨 Building base manifest from: %s\n", beforeEnvPath)
-		baseManifest, err = builder.Build(ctx, beforeEnvPath)
+		fmt.Printf("🔨 Building base manifest from: %s\n", beforeServicePath)
+		baseManifest, err = builder.Build(ctx, beforeServicePath)
 		if err != nil {
 			return nil, fmt.Errorf("failed to build base manifest: %w", err)
 		}
 
-		fmt.Printf("🔨 Building head manifest from: %s\n", afterEnvPath)
-		headManifest, err = builder.Build(ctx, afterEnvPath)
+		fmt.Printf("🔨 Building head manifest from: %s\n", afterServicePath)
+		headManifest, err = builder.Build(ctx, afterServicePath)
 		if err != nil {
 			return nil, fmt.Errorf("failed to build head manifest: %w", err)
 		}
@@ -348,8 +350,8 @@ func validateOptions(opts *options) error {
 
 	// Validate mode-specific options
 	if opts.runMode == "local" {
-		if opts.lcBeforePath == "" || opts.lcAfterPath == "" {
-			return fmt.Errorf("local mode requires --lc-before and --lc-after")
+		if opts.lcBeforeManifestsPath == "" || opts.lcAfterManifestsPath == "" {
+			return fmt.Errorf("local mode requires --lc-before-manifests-path and --lc-after-manifests-path")
 		}
 	} else {
 		// GitHub mode
@@ -373,10 +375,8 @@ func parseRepo(repo string) (string, string) {
 }
 
 func buildManifestsFromPR(ctx context.Context, builder *kustomize.Builder, opts *options, environment string, prInfo *config.PullRequest) ([]byte, []byte, error) {
-	// In GitHub mode, we need manifestsPath to know where services are
-	// For now, hardcode to "./services" - can be made configurable later if needed
-	manifestsPath := "./services"
-	servicePath := builder.GetServiceEnvironmentPath(manifestsPath, opts.service, environment)
+	// Use manifestsPath from options (default: ./services)
+	servicePath := builder.GetServiceEnvironmentPath(opts.manifestsPath, opts.service, environment)
 
 	// Build base manifest
 	fmt.Printf("🔨 Building base manifest (ref: %s)...\n", prInfo.BaseRef)

@@ -43,6 +43,7 @@ gitops-kustomz \
   --gh-pr-number 123 \
   --service my-app \
   --environments stg,prod \
+  --manifests-path ./services \
   --policies-path ./policies
 
 # Local testing
@@ -50,8 +51,8 @@ gitops-kustomz \
   --run-mode local \
   --service my-app \
   --environments stg,prod \
-  --lc-before ./before/services/my-app/environments \
-  --lc-after ./after/services/my-app/environments \
+  --lc-before-manifests-path ./before/services \
+  --lc-after-manifests-path ./after/services \
   --policies-path ./policies \
   --lc-output-dir ./output
 ```
