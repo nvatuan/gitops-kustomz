@@ -1,0 +1,96 @@
+name: 'Setup GitOps Tools'
+description: 'Install kustomize, OPA, and gitops-kustomz with caching'
+author: 'gh-nvat'
+
+inputs:
+  go-version:
+    description: 'Go version to install'
+    required: false
+    default: '1.22'
+  kustomize-version:
+    description: 'Kustomize version to install'
+    required: false
+    default: '5.3.0'
+  opa-version:
+    description: 'OPA version to install'
+    required: false
+    default: '0.60.0'
+  gitops-kustomz-version:
+    description: 'gitops-kustomz version to install'
+    required: false
+    default: 'latest'
+  install-kustomize:
+    description: 'Install kustomize'
+    required: false
+    default: 'true'
+  install-opa:
+    description: 'Install OPA'
+    required: false
+    default: 'true'
+  install-gitops-kustomz:
+    description: 'Install gitops-kustomz'
+    required: false
+    default: 'true'
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Setup Go
+      uses: actions/setup-go@v5
+      with:
+        go-version: ${{ inputs.go-version }}
+        cache: true
+
+    - name: Cache tools
+      id: cache-tools
+      uses: actions/cache@v4
+      with:
+        path: |
+          /usr/local/bin/kustomize
+          /usr/local/bin/opa
+          ~/go/bin/gitops-kustomz
+        key: tools-${{ runner.os }}-kustomize-${{ inputs.kustomize-version }}-opa-${{ inputs.opa-version }}-gitops-${{ inputs.gitops-kustomz-version }}
+
+    - name: Install kustomize
+      if: steps.cache-tools.outputs.cache-hit != 'true' && inputs.install-kustomize == 'true'
+      shell: bash
+      run: |
+        curl -sL "https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize%2Fv${{ inputs.kustomize-version }}/kustomize_v${{ inputs.kustomize-version }}_linux_amd64.tar.gz" | tar xz
+        sudo mv kustomize /usr/local/bin/
+        kustomize version
+
+    - name: Install OPA
+      if: steps.cache-tools.outputs.cache-hit != 'true' && inputs.install-opa == 'true'
+      shell: bash
+      run: |
+        curl -L -o opa "https://github.com/open-policy-agent/opa/releases/download/v${{ inputs.opa-version }}/opa_linux_amd64_static"
+        chmod +x opa
+        sudo mv opa /usr/local/bin/
+        opa version
+
+    - name: Install gitops-kustomz
+      if: steps.cache-tools.outputs.cache-hit != 'true' && inputs.install-gitops-kustomz == 'true'
+      shell: bash
+      run: |
+        go install github.com/gh-nvat/gitops-kustomz@${{ inputs.gitops-kustomz-version }}
+
+    - name: Add tools to PATH
+      shell: bash
+      run: |
+        echo "/usr/local/bin" >> $GITHUB_PATH
+        echo "$HOME/go/bin" >> $GITHUB_PATH
+
+    - name: Verify installations
+      shell: bash
+      run: |
+        echo "✅ Installed tools:"
+        if command -v kustomize &> /dev/null; then
+          echo "  kustomize: $(kustomize version --short 2>&1 || kustomize version)"
+        fi
+        if command -v opa &> /dev/null; then
+          echo "  opa: $(opa version)"
+        fi
+        if command -v gitops-kustomz &> /dev/null; then
+          echo "  gitops-kustomz: $(gitops-kustomz --version)"
+        fi
+

@@ -13,6 +13,7 @@ This directory contains sample GitHub Actions workflows that you can copy to you
 - Runs parallel checks for each service-environment combination
 - Posts separate comments for each combination
 - Matrix strategy for efficient parallel execution
+- Self-contained (installs tools inline)
 
 **Example output:** 
 - PR comment for `my-app` in `stg`
@@ -28,9 +29,42 @@ This directory contains sample GitHub Actions workflows that you can copy to you
 - Checks all environments (sandbox, stg, prod) in one run
 - Posts a single combined comment per service with environment matrix
 - Faster for repos with many environments
+- Self-contained (installs tools inline)
 
 **Example output:**
 - One PR comment for `my-app` showing results for all environments in a matrix
+
+### 3. `gitops-policy-check-with-action.yml` - Using Composite Action (Recommended)
+
+**Use this when:** You want to reuse the tool installation logic from the gitops-kustomz repo.
+
+**Features:**
+- Uses the composite action from `gh-nvat/gitops-kustomz/.github/actions/setup-tools@main`
+- Cleaner workflow (no inline installation code)
+- Centralized tool management
+- Automatic updates when the action is updated
+- Same caching benefits
+
+**Example:**
+```yaml
+- name: Setup GitOps tools
+  uses: gh-nvat/gitops-kustomz/.github/actions/setup-tools@main
+  with:
+    go-version: '1.22'
+    kustomize-version: '5.3.0'
+    opa-version: '0.60.0'
+    gitops-kustomz-version: 'latest'
+```
+
+## Which Workflow Should I Use?
+
+| Workflow | Best For | Pros | Cons |
+|----------|----------|------|------|
+| `gitops-policy-check.yml` | Per-environment reports | Separate comments per env | More verbose |
+| `gitops-policy-check-multi-env.yml` | Combined reports | Single comment with matrix | - |
+| `gitops-policy-check-with-action.yml` | Cleaner code | Reusable action, auto-updates | Requires public repo access |
+
+**Recommendation:** Start with `gitops-policy-check-with-action.yml` for cleaner code and easier maintenance.
 
 ## Setup Instructions
 
@@ -149,28 +183,56 @@ These are automatically provided by `secrets.GITHUB_TOKEN`.
 
 ## Advanced Configuration
 
-### Use Specific Version
+### Version Management
 
-Instead of `@latest`, pin to a specific version:
-
-```yaml
-- name: Install gitops-kustomz
-  run: go install github.com/gh-nvat/gitops-kustomz@v1.0.0
-```
-
-### Use Pre-built Binary
-
-For faster CI runs, use pre-built binaries:
+All tool versions are managed via environment variables at the top of the workflow:
 
 ```yaml
-- name: Install gitops-kustomz
-  run: |
-    VERSION="v1.0.0"
-    curl -L -o gitops-kustomz \
-      "https://github.com/gh-nvat/gitops-kustomz/releases/download/${VERSION}/gitops-kustomz-linux-amd64"
-    chmod +x gitops-kustomz
-    sudo mv gitops-kustomz /usr/local/bin/
+env:
+  GO_VERSION: '1.22'
+  KUSTOMIZE_VERSION: '5.3.0'
+  OPA_VERSION: '0.60.0'
+  GITOPS_KUSTOMZ_VERSION: 'latest'  # Or pin to 'v1.0.0'
 ```
+
+**To pin to specific versions:**
+
+```yaml
+env:
+  GO_VERSION: '1.22'
+  KUSTOMIZE_VERSION: '5.3.0'        # Stable kustomize version
+  OPA_VERSION: '0.60.0'             # Stable OPA version
+  GITOPS_KUSTOMZ_VERSION: 'v1.0.0'  # Pin to specific release
+```
+
+**Benefits:**
+- ✅ Tools are cached across workflow runs (faster CI)
+- ✅ Easy to update versions in one place
+- ✅ Reproducible builds
+- ✅ Direct downloads from GitHub releases (no install scripts)
+
+### Cache Behavior
+
+The workflows use GitHub Actions cache to speed up subsequent runs:
+
+```yaml
+- name: Cache tools
+  uses: actions/cache@v4
+  with:
+    path: |
+      /usr/local/bin/kustomize
+      /usr/local/bin/opa
+      ~/go/bin/gitops-kustomz
+    key: tools-${{ runner.os }}-kustomize-${{ env.KUSTOMIZE_VERSION }}-opa-${{ env.OPA_VERSION }}-gitops-${{ env.GITOPS_KUSTOMZ_VERSION }}
+```
+
+**Cache is invalidated when:**
+- Any tool version changes
+- Runner OS changes
+- Manual cache clear in GitHub settings
+
+**First run:** ~30-60 seconds to download and install tools  
+**Cached runs:** ~2-5 seconds to restore from cache
 
 ### Custom Templates Path
 

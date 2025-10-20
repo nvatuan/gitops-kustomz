@@ -1,0 +1,26 @@
+## 📊 Manifest Changes
+
+{{if .EnvironmentDiffs}}
+{{range .EnvironmentDiffs}}
+### {{.Environment}}
+
+{{if .HasChanges}}
+**Lines changed:** {{.LineCount}}
+
+<details>
+<summary>Click to expand {{.Environment}} diff</summary>
+
+```diff
+{{.Content}}
+```
+
+</details>
+{{else}}
+✅ No changes detected.
+{{end}}
+
+{{end}}
+{{else}}
+✅ No changes detected.
+{{end}}
+

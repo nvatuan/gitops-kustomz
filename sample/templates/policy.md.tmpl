@@ -1,0 +1,32 @@
+## 🛡️ Policy Evaluation Results
+
+### Summary
+
+{{range $env, $sum := .MultiEnvPolicyReport.Summary}}
+**{{$env}}:** {{$sum.PassedPolicies}}/{{$sum.TotalPolicies}} passed{{if gt $sum.FailedPolicies 0}} | ❌ {{$sum.FailedPolicies}} failed{{end}}{{if gt $sum.ErroredPolicies 0}} | 💥 {{$sum.ErroredPolicies}} errored{{end}}  
+{{end}}
+
+### Policy Matrix
+
+| Policy | Enforcement |{{range .MultiEnvPolicyReport.Environments}} {{.}} |{{end}}
+|--------|-------------|{{range .MultiEnvPolicyReport.Environments}}--------|{{end}}
+{{range $policy := .MultiEnvPolicyReport.Policies}}| {{$policy.Name}} | {{$policy.Level}} |{{range $env := $.MultiEnvPolicyReport.Environments}}{{$result := index $policy.Results $env}} {{if $result}}{{$result.Status}}{{else}}N/A{{end}} |{{end}}
+{{end}}
+
+{{range $env, $sum := .MultiEnvPolicyReport.Summary}}
+{{if gt $sum.FailedPolicies 0}}
+### ⚠️ Failed Policies in {{$env}}
+
+{{range $.MultiEnvPolicyReport.Policies}}
+{{$result := index .Results $env}}
+{{if and $result (ne $result.Status "PASS")}}
+#### {{.Name}}
+- **Enforcement:** {{.Level}}
+{{if $result.Violations}}- **Violations:**{{range $result.Violations}}
+  - {{.}}{{end}}{{end}}
+{{if $result.Error}}- **Error:** {{$result.Error}}{{end}}
+{{end}}
+{{end}}
+{{end}}
+{{end}}
+

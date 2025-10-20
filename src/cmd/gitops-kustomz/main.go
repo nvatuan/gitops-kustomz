@@ -181,19 +181,32 @@ func run(ctx context.Context, opts *options) error {
 
 	// Render combined comment/output
 	var renderedComment string
-	if _, statErr := os.Stat(opts.templatesPath); statErr == nil {
-		// Use modular templates from templates directory
-		var renderErr error
+	var renderErr error
+
+	// Check if user explicitly provided templates-path
+	if opts.templatesPath != "./templates" {
+		// User specified a custom path - use it and fail if templates don't exist
+		fmt.Printf("📝 Using custom templates from: %s\n", opts.templatesPath)
 		renderedComment, renderErr = renderer.RenderWithTemplates(opts.templatesPath, multiEnvData)
 		if renderErr != nil {
-			return fmt.Errorf("failed to render comment: %w", renderErr)
+			return fmt.Errorf("failed to render comment with custom templates: %w", renderErr)
 		}
 	} else {
-		// Use default embedded template
-		var renderErr error
-		renderedComment, renderErr = renderer.RenderString(renderer.GetDefaultCommentTemplate(), multiEnvData)
-		if renderErr != nil {
-			return fmt.Errorf("failed to render comment: %w", renderErr)
+		// Check if default templates directory exists
+		if _, statErr := os.Stat(opts.templatesPath); statErr == nil {
+			// Default templates directory exists, use it
+			fmt.Printf("📝 Using templates from: %s\n", opts.templatesPath)
+			renderedComment, renderErr = renderer.RenderWithTemplates(opts.templatesPath, multiEnvData)
+			if renderErr != nil {
+				return fmt.Errorf("failed to render comment: %w", renderErr)
+			}
+		} else {
+			// Use default embedded template
+			fmt.Println("📝 Using default embedded template")
+			renderedComment, renderErr = renderer.RenderString(renderer.GetDefaultCommentTemplate(), multiEnvData)
+			if renderErr != nil {
+				return fmt.Errorf("failed to render comment: %w", renderErr)
+			}
 		}
 	}
 

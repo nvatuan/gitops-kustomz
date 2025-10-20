@@ -1,4 +1,4 @@
-name: GitOps Policy Check (Multi-Environment)
+name: GitOps Policy Check (Using Reusable Workflow)
 
 on:
   pull_request:
@@ -48,10 +48,22 @@ jobs:
           echo "Detected services: $SERVICES"
           echo "services=$SERVICES" >> $GITHUB_OUTPUT
 
+  # Call the reusable workflow to setup tools
+  setup-tools:
+    name: Setup GitOps Tools
+    needs: detect-changes
+    if: needs.detect-changes.outputs.services != '[]'
+    uses: gh-nvat/gitops-kustomz/.github/workflows/setup-tools.yml@main
+    with:
+      go-version: '1.22'
+      kustomize-version: '5.3.0'
+      opa-version: '0.60.0'
+      gitops-kustomz-version: 'latest'
+
   policy-check:
     name: Check ${{ matrix.service }}
     runs-on: ubuntu-latest
-    needs: detect-changes
+    needs: [detect-changes, setup-tools]
     if: needs.detect-changes.outputs.services != '[]'
     strategy:
       matrix:
@@ -63,6 +75,9 @@ jobs:
         with:
           fetch-depth: 2  # Only need base and head commits
 
+      # Tools are already installed by setup-tools job
+      # But we need to install them again in this job since jobs run in separate runners
+      # So we still need to install tools here
       - name: Cache tools
         id: cache-tools
         uses: actions/cache@v4
@@ -71,22 +86,20 @@ jobs:
             /usr/local/bin/kustomize
             /usr/local/bin/opa
             ~/go/bin/gitops-kustomz
-          key: tools-${{ runner.os }}-kustomize-${{ env.KUSTOMIZE_VERSION }}-opa-${{ env.OPA_VERSION }}-gitops-${{ env.GITOPS_KUSTOMZ_VERSION }}
+          key: tools-${{ runner.os }}-kustomize-5.3.0-opa-0.60.0-gitops-latest
 
       - name: Install kustomize
         if: steps.cache-tools.outputs.cache-hit != 'true'
         run: |
-          curl -sL "https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize%2Fv${{ env.KUSTOMIZE_VERSION }}/kustomize_v${{ env.KUSTOMIZE_VERSION }}_linux_amd64.tar.gz" | tar xz
+          curl -sL "https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize%2Fv5.3.0/kustomize_v5.3.0_linux_amd64.tar.gz" | tar xz
           sudo mv kustomize /usr/local/bin/
-          kustomize version
 
       - name: Install OPA
         if: steps.cache-tools.outputs.cache-hit != 'true'
         run: |
-          curl -L -o opa "https://github.com/open-policy-agent/opa/releases/download/v${{ env.OPA_VERSION }}/opa_linux_amd64_static"
+          curl -L -o opa "https://github.com/open-policy-agent/opa/releases/download/v0.60.0/opa_linux_amd64_static"
           chmod +x opa
           sudo mv opa /usr/local/bin/
-          opa version
 
       - name: Install gitops-kustomz
         if: steps.cache-tools.outputs.cache-hit != 'true'
@@ -100,10 +113,10 @@ jobs:
           if [ "$ARCH" = "aarch64" ]; then ARCH="arm64"; fi
           
           BINARY_NAME="gitops-kustomz-${OS}-${ARCH}"
-          DOWNLOAD_URL="https://github.com/gh-nvat/gitops-kustomz/releases/download/${{ env.GITOPS_KUSTOMZ_VERSION }}/${BINARY_NAME}"
+          DOWNLOAD_URL="https://github.com/nvatuan/gitops-kustomz/releases/download/${{ env.GITOPS_KUSTOMZ_VERSION }}/${BINARY_NAME}"
           
           echo "Downloading ${BINARY_NAME} from ${DOWNLOAD_URL}"
-          curl -sL "${DOWNLOAD_URL}" -o ~/go/bin/gitops-kustomz
+          curl -L "${DOWNLOAD_URL}" -o ~/go/bin/gitops-kustomz
           chmod +x ~/go/bin/gitops-kustomz
           ~/go/bin/gitops-kustomz --version
 
@@ -116,7 +129,6 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          # Check all environments in one run (generates combined report)
           gitops-kustomz \
             --run-mode github \
             --gh-repo ${{ github.repository }} \
@@ -131,4 +143,3 @@ jobs:
         run: |
           echo "::error::Policy check failed for ${{ matrix.service }}"
           exit 1
-
