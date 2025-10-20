@@ -1,0 +1,161 @@
+name: Test gitops-kustomz
+
+on:
+  pull_request:
+    paths:
+      - 'src/**'
+      - 'sample/**'
+      - 'test/**'
+      - '.github/workflows/test-tool.yml'
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  test-local-mode:
+    name: Test Local Mode
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.22'
+
+      - name: Install kustomize
+        run: |
+          curl -s "https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh" | bash
+          sudo mv kustomize /usr/local/bin/
+
+      - name: Install OPA
+        run: |
+          curl -L -o opa https://openpolicyagent.org/downloads/latest/opa_linux_amd64
+          chmod +x opa
+          sudo mv opa /usr/local/bin/
+
+      - name: Build tool
+        run: make build
+
+      - name: Run local mode test
+        run: |
+          bin/gitops-kustomz \
+            --run-mode local \
+            --service my-app \
+            --environments stg,prod \
+            --lc-before test/local/before/services/my-app/environments \
+            --lc-after test/local/after/services/my-app/environments \
+            --policies-path sample/policies \
+            --templates-path src/templates \
+            --lc-output-dir test/output
+
+      - name: Verify output
+        run: |
+          if [ ! -f test/output/my-app-report.md ]; then
+            echo "❌ Report file not generated"
+            exit 1
+          fi
+          
+          echo "✅ Report generated successfully"
+          echo ""
+          echo "📄 Report contents:"
+          cat test/output/my-app-report.md
+
+      - name: Upload report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: policy-report
+          path: test/output/*.md
+
+  test-github-mode:
+    name: Test GitHub Mode
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.22'
+
+      - name: Install kustomize
+        run: |
+          curl -s "https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh" | bash
+          sudo mv kustomize /usr/local/bin/
+
+      - name: Install OPA
+        run: |
+          curl -L -o opa https://openpolicyagent.org/downloads/latest/opa_linux_amd64
+          chmod +x opa
+          sudo mv opa /usr/local/bin/
+
+      - name: Build tool
+        run: make build
+
+      - name: Test on sample data (GitHub mode simulation)
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # This will test the GitHub mode but won't actually post comments
+          # since sample/k8s-manifests doesn't have the right structure
+          echo "GitHub mode test would run here"
+          echo "Skipping actual GitHub mode test for now"
+          
+          # Future: Set up proper test structure and run:
+          # bin/gitops-kustomz \
+          #   --run-mode github \
+          #   --gh-repo ${{ github.repository }} \
+          #   --gh-pr-number ${{ github.event.pull_request.number }} \
+          #   --service my-app \
+          #   --environments stg,prod \
+          #   --policies-path sample/policies
+
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.22'
+
+      - name: Install golangci-lint
+        run: |
+          curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin
+          echo "$(go env GOPATH)/bin" >> $GITHUB_PATH
+
+      - name: Run linter
+        run: make lint
+
+  test:
+    name: Unit Tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.22'
+
+      - name: Run tests
+        run: make test
+
+      - name: Upload coverage
+        uses: codecov/codecov-action@v4
+        if: always()
+        with:
+          files: ./coverage.txt
+          flags: unittests
+
