@@ -10,7 +10,7 @@ import (
 
 	"github.com/gh-nvat/gitops-kustomz/src/pkg/config"
 	"github.com/open-policy-agent/opa/rego"
-	"gopkg.in/yaml.v3"
+	yaml "gopkg.in/yaml.v3"
 )
 
 const (
