@@ -16,41 +16,37 @@ PR Opens → Detect Changes → Build Manifests → Diff Changes → Evaluate Po
 
 ```
 gitops-kustomz/
-├── cmd/
-│   └── root.go                    # CLI entry point
-├── pkg/
-│   ├── github/
-│   │   ├── client.go             # GitHub API client (create/update comments)
-│   │   ├── pr.go                 # PR operations (get PR info, detect changes)
-│   │   └── comment.go            # Comment management (placeholder, updates)
-│   ├── kustomize/
-│   │   ├── builder.go            # Kustomize build wrapper
-│   │   ├── cache.go              # Build cache by commit SHA
-│   │   └── parser.go             # Parse kustomize directory structure
-│   ├── diff/
-│   │   ├── differ.go             # Diff kustomize builds (base vs head)
-│   │   └── formatter.go          # Format diff for markdown output
-│   ├── policy/
-│   │   ├── loader.go             # Load compliance-config.yaml
-│   │   ├── evaluator.go          # Evaluate OPA policies
-│   │   ├── enforcer.go           # Enforcement logic (RECOMMEND/WARNING/BLOCK)
-│   │   ├── override.go           # Check PR comments for overrides
-│   │   └── reporter.go           # Generate policy evaluation report
-│   ├── config/
-│   │   ├── config.go             # Configuration loader
-│   │   └── types.go              # Config structs
-│   └── template/
-│       ├── renderer.go           # Template rendering
-│       └── templates/
-│           ├── comment.md.tmpl   # Main PR comment template
-│           ├── diff.md.tmpl      # Diff section template
-│           └── policy.md.tmpl    # Policy report template
-├── internal/
-│   └── testutil/                 # Test utilities
-├── templates/                     # Default templates (can be overridden)
-└── test/
-    ├── unit/
-    └── integration/
+├── src/
+│   ├── cmd/
+│   │   └── gitops-kustomz/       # CLI entry point (main.go)
+│   ├── pkg/
+│   │   ├── github/
+│   │   │   └── client.go         # GitHub API client (create/update comments, PR ops)
+│   │   ├── kustomize/
+│   │   │   └── builder.go        # Kustomize build wrapper
+│   │   ├── diff/
+│   │   │   └── differ.go         # Diff kustomize builds (base vs head)
+│   │   ├── policy/
+│   │   │   ├── evaluator.go      # Load config, evaluate OPA, check overrides
+│   │   │   └── reporter.go       # Generate policy evaluation report
+│   │   ├── config/
+│   │   │   ├── config.go         # Configuration loader
+│   │   │   └── types.go          # Config structs
+│   │   └── template/
+│   │       └── renderer.go       # Template rendering
+│   ├── internal/
+│   │   └── testutil/             # Test utilities
+│   └── templates/                # Default markdown templates
+│       ├── comment.md.tmpl       # Main PR comment template
+│       ├── diff.md.tmpl          # Diff section template
+│       └── policy.md.tmpl        # Policy report template
+├── sample/                        # Example policies & manifests
+├── test/                          # Test data
+│   ├── local/                    # Local testing mode data
+│   └── output/                   # Generated test reports
+├── docs/                          # Documentation
+├── go.mod                         # Go module definition
+└── Makefile                       # Build automation
 ```
 
 ## Core Components Design
@@ -58,31 +54,27 @@ gitops-kustomz/
 ### 1. CLI Interface
 
 ```go
-// cmd/root.go
+// src/cmd/gitops-kustomz/main.go
 gitops-kustomz [flags]
 
 Flags:
-  --pr-url string              # GitHub PR URL (e.g., https://github.com/org/repo/pull/123)
-  --repo string                # Repository (e.g., org/repo)
-  --pr-number int              # PR number
-  --service string             # Service name (e.g., my-app)
-  --environment string         # Environment (e.g., stg, prod)
-  --manifests-path string      # Path to k8s manifests (default: ./services)
-  --policies-path string       # Path to policies dir (default: ./policies)
-  --compliance-config string   # Path to compliance config (default: ./policies/compliance-config.yaml)
-  --comment-template string    # Path to comment template (default: ./templates/comment.md.tmpl)
-  --diff-template string       # Path to diff template (default: ./templates/diff.md.tmpl)
-  --policy-template string     # Path to policy template (default: ./templates/policy.md.tmpl)
-  --cache-dir string           # Cache directory (default: ./.cache)
-  --local-mode                 # Run in local mode (output to files instead of PR comments)
-  --local-output-dir string    # Local mode output directory (default: ./output)
-  --skip-cache                 # Skip cache and force rebuild
-  --gh-token string            # GitHub token (default: $GH_TOKEN or $GITHUB_TOKEN)
-  --base-ref string            # Base branch/ref (default: PR base)
-  --head-ref string            # Head branch/ref (default: PR head)
+  --run-mode string            # Run mode: github or local (default: github)
+  --service string             # Service name (e.g., my-app) [required]
+  --environments strings       # Comma-separated environments (e.g., stg,prod) [required]
+  --policies-path string       # Path to policies dir containing compliance-config.yaml (default: ./policies)
+  --templates-path string      # Path to templates directory (default: ./templates)
+  
+  # GitHub mode flags
+  --gh-repo string             # Repository (e.g., org/repo) [required for github mode]
+  --gh-pr-number int           # PR number [required for github mode]
+  
+  # Local mode flags
+  --lc-before string           # Path to before/base kustomize directory [required for local mode]
+  --lc-after string            # Path to after/head kustomize directory [required for local mode]
+  --lc-output-dir string       # Local mode output directory (default: ./output)
 ```
 
-### 2. GitHub Client (`pkg/github/`)
+### 2. GitHub Client (`src/pkg/github/`)
 
 #### Responsibilities:
 - Authenticate with GitHub API using token from GH_TOKEN env var
@@ -107,7 +99,7 @@ type Client interface {
 - If comment exists, update it; otherwise create new
 - Support multiple service-env combinations in single PR (separate comments or sections)
 
-### 3. Kustomize Builder (`pkg/kustomize/`)
+### 3. Kustomize Builder (`src/pkg/kustomize/`)
 
 #### Responsibilities:
 - Execute `kustomize build` on base and overlay directories
@@ -143,7 +135,7 @@ services/
 ```
 If `environments/<env>` doesn't exist, the service is not deployed to that environment.
 
-### 4. Diff Engine (`pkg/diff/`)
+### 4. Diff Engine (`src/pkg/diff/`)
 
 #### Responsibilities:
 - Compare base and head kustomize builds
@@ -164,7 +156,7 @@ type Differ interface {
 - Use expandable `<details>` for large diffs (>50 lines)
 - Future enhancement: structured/semantic diff for better readability
 
-### 5. Policy Engine (`pkg/policy/`)
+### 5. Policy Engine (`src/pkg/policy/`)
 
 #### Responsibilities:
 - Load and validate compliance-config.yaml
@@ -282,7 +274,7 @@ When loading policies, validate:
 }
 ```
 
-### 6. Template Renderer (`pkg/template/`)
+### 6. Template Renderer (`src/pkg/template/`)
 
 #### Responsibilities:
 - Render markdown templates

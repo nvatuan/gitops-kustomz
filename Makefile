@@ -1,4 +1,4 @@
-.PHONY: build test lint clean install run-local
+.PHONY: build test lint clean install run-local build-release
 
 # Binary name and paths
 BINARY_NAME=gitops-kustomz
@@ -30,6 +30,23 @@ clean:
 	rm -rf ${BIN_DIR}
 	rm -f coverage.txt coverage.html
 	rm -rf dist/
+
+# Build release binaries for multiple platforms
+build-release:
+	@echo "Building release binaries..."
+	@mkdir -p dist
+	@echo "Building Linux AMD64..."
+	GOOS=linux GOARCH=amd64 go build ${LDFLAGS} -o dist/${BINARY_NAME}-linux-amd64 ${MAIN_PATH}
+	@echo "Building Linux ARM64..."
+	GOOS=linux GOARCH=arm64 go build ${LDFLAGS} -o dist/${BINARY_NAME}-linux-arm64 ${MAIN_PATH}
+	@echo "Building macOS AMD64..."
+	GOOS=darwin GOARCH=amd64 go build ${LDFLAGS} -o dist/${BINARY_NAME}-darwin-amd64 ${MAIN_PATH}
+	@echo "Building macOS ARM64..."
+	GOOS=darwin GOARCH=arm64 go build ${LDFLAGS} -o dist/${BINARY_NAME}-darwin-arm64 ${MAIN_PATH}
+	@echo "Generating checksums..."
+	cd dist && sha256sum ${BINARY_NAME}-* > checksums.txt
+	@echo "✅ Release binaries built successfully!"
+	@ls -lh dist/
 
 run: build
 	${BIN_DIR}/${BINARY_NAME}
@@ -77,5 +94,6 @@ help:
 	@echo "  fmt            - Format code"
 	@echo "  security       - Check for security issues"
 	@echo "  check          - Run all checks"
+	@echo "  build-release  - Build release binaries for all platforms"
 
 

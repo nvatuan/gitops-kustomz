@@ -67,8 +67,9 @@ gitops-kustomz \
 
 ## Documentation
 
-- [ARCHITECTURE.md](./ARCHITECTURE.md) - High-level architecture and use cases
-- [DESIGN.md](./DESIGN.md) - Detailed design and implementation specs
+- [docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md) - High-level architecture and use cases
+- [docs/DESIGN.md](./docs/DESIGN.md) - Detailed design and implementation specs
+- [LOCAL_TESTING.md](./LOCAL_TESTING.md) - Local testing guide
 
 ## Requirements
 

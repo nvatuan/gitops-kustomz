@@ -63,31 +63,7 @@ jobs:
           echo "Building release $NEW_VERSION (from $LATEST_TAG)"
 
       - name: Build binaries
-        run: |
-          VERSION="${{ steps.get_version.outputs.new_version }}"
-          BUILD_TIME=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
-          LDFLAGS="-X main.Version=$VERSION -X main.BuildTime=$BUILD_TIME"
-          OUTPUT_DIR="dist"
-          mkdir -p "$OUTPUT_DIR"
-          
-          # Build for Linux AMD64
-          GOOS=linux GOARCH=amd64 go build -ldflags "$LDFLAGS" -o "$OUTPUT_DIR/gitops-kustomz-linux-amd64" ./cmd/gitops-kustomz
-          
-          # Build for Linux ARM64
-          GOOS=linux GOARCH=arm64 go build -ldflags "$LDFLAGS" -o "$OUTPUT_DIR/gitops-kustomz-linux-arm64" ./cmd/gitops-kustomz
-          
-          # Build for macOS AMD64
-          GOOS=darwin GOARCH=amd64 go build -ldflags "$LDFLAGS" -o "$OUTPUT_DIR/gitops-kustomz-darwin-amd64" ./cmd/gitops-kustomz
-          
-          # Build for macOS ARM64
-          GOOS=darwin GOARCH=arm64 go build -ldflags "$LDFLAGS" -o "$OUTPUT_DIR/gitops-kustomz-darwin-arm64" ./cmd/gitops-kustomz
-          
-          # Create checksums
-          cd "$OUTPUT_DIR"
-          sha256sum gitops-kustomz-* > checksums.txt
-          cd ..
-          
-          ls -lh "$OUTPUT_DIR"
+        run: make build-release VERSION="${{ steps.get_version.outputs.new_version }}"
 
       - name: Create Release
         uses: softprops/action-gh-release@v1
