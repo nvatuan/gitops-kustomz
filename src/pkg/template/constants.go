@@ -2,7 +2,7 @@ package template
 
 // DefaultCommentTemplate is the embedded default template for PR comments
 // This template supports MultiEnvCommentData structure
-const DefaultCommentTemplate = `<!-- gitops-kustomz: {{.Service}} -->
+const DefaultCommentTemplate = `<!-- gitops-kustomz: {{.Service}} - auto-generated comment, please do not remove -->
 
 # 🔍 GitOps Policy Check: {{.Service}}
 

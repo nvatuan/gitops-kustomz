@@ -214,17 +214,22 @@ func (c *Client) GetComments(ctx context.Context, owner, repo string, number int
 }
 
 // FindToolComment finds an existing tool-generated comment for the service-environment
+// If multiple comments with the same marker exist, returns the latest one (highest ID)
 func (c *Client) FindToolComment(ctx context.Context, owner, repo string, number int, marker string) (*config.Comment, error) {
 	comments, err := c.GetComments(ctx, owner, repo, number)
 	if err != nil {
 		return nil, err
 	}
 
+	var latestComment *config.Comment
 	for _, comment := range comments {
 		if strings.Contains(comment.Body, marker) {
-			return comment, nil
+			// If multiple comments exist, keep the one with the highest ID (latest)
+			if latestComment == nil || comment.ID > latestComment.ID {
+				latestComment = comment
+			}
 		}
 	}
 
-	return nil, nil // Not found
+	return latestComment, nil // Returns nil if not found
 }

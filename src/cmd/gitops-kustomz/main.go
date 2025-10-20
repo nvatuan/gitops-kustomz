@@ -226,7 +226,7 @@ func run(ctx context.Context, opts *options) error {
 		// Post or update GitHub comment
 		fmt.Println("💬 Posting results to GitHub PR...")
 		owner, repo := parseRepo(opts.ghRepo)
-		marker := fmt.Sprintf("<!-- gitops-kustomz: %s -->", opts.service)
+		marker := fmt.Sprintf("<!-- gitops-kustomz: %s - auto-generated comment, please do not remove -->", opts.service)
 
 		fmt.Printf("   Repository: %s/%s\n", owner, repo)
 		fmt.Printf("   PR Number: #%d\n", opts.ghPrNumber)
@@ -240,6 +240,23 @@ func run(ctx context.Context, opts *options) error {
 		fmt.Println("   ✓ GitHub client authenticated")
 
 		fmt.Println("   Searching for existing comment...")
+
+		// Get all comments to check for duplicates
+		allComments, err := ghClient.GetComments(ctx, owner, repo, opts.ghPrNumber)
+		if err != nil {
+			fmt.Printf("   ⚠️  Failed to get PR comments: %v\n", err)
+		} else {
+			matchingCount := 0
+			for _, c := range allComments {
+				if strings.Contains(c.Body, marker) {
+					matchingCount++
+				}
+			}
+			if matchingCount > 1 {
+				fmt.Printf("   ⚠️  Found %d comments with the same marker, will update the latest one\n", matchingCount)
+			}
+		}
+
 		existingComment, err := ghClient.FindToolComment(ctx, owner, repo, opts.ghPrNumber, marker)
 		if err != nil {
 			fmt.Printf("   ⚠️  Failed to search for existing comment: %v\n", err)
