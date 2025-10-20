@@ -21,6 +21,20 @@ GitOps policy enforcement tool for Kubernetes manifests managed with Kustomize.
 
 ## Quick Start
 
+### GitHub Actions (Recommended)
+
+Copy one of the sample workflows to your GitOps repository:
+
+```bash
+# Copy workflow to your repo
+cp sample/github-actions/gitops-policy-check-multi-env.yml \
+   .github/workflows/gitops-policy-check.yml
+```
+
+See [sample/github-actions/README.md](./sample/github-actions/README.md) for detailed setup instructions.
+
+### CLI Usage
+
 ```bash
 # Run on a PR (GitHub mode)
 gitops-kustomz \
@@ -29,8 +43,7 @@ gitops-kustomz \
   --gh-pr-number 123 \
   --service my-app \
   --environments stg,prod \
-  --policies-path ./policies \
-  --templates-path ./templates
+  --policies-path ./policies
 
 # Local testing
 gitops-kustomz \
@@ -40,7 +53,6 @@ gitops-kustomz \
   --lc-before ./before/services/my-app/environments \
   --lc-after ./after/services/my-app/environments \
   --policies-path ./policies \
-  --templates-path ./src/templates \
   --lc-output-dir ./output
 ```
 
@@ -67,6 +79,7 @@ gitops-kustomz \
 
 ## Documentation
 
+- [sample/github-actions/README.md](./sample/github-actions/README.md) - **GitHub Actions setup guide**
 - [docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md) - High-level architecture and use cases
 - [docs/DESIGN.md](./docs/DESIGN.md) - Detailed design and implementation specs
 - [LOCAL_TESTING.md](./LOCAL_TESTING.md) - Local testing guide

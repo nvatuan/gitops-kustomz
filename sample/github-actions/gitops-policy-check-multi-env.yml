@@ -1,0 +1,99 @@
+name: GitOps Policy Check (Multi-Environment)
+
+on:
+  pull_request:
+    paths:
+      - 'services/**'
+      - 'policies/**'
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  detect-changes:
+    name: Detect Changed Services
+    runs-on: ubuntu-latest
+    outputs:
+      services: ${{ steps.set-services.outputs.services }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Detect changed services
+        id: set-services
+        run: |
+          # Get changed files and extract unique services
+          CHANGED_FILES=$(git diff --name-only origin/${{ github.base_ref }}...HEAD)
+          
+          SERVICES=$(echo "$CHANGED_FILES" | \
+            grep -E '^services/[^/]+/' | \
+            sed -E 's|^services/([^/]+)/.*|\1|' | \
+            sort -u | \
+            jq -R -s -c 'split("\n") | map(select(length > 0))')
+          
+          if [ "$SERVICES" == "[]" ]; then
+            echo "No service changes detected"
+            echo "services=[]" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+          
+          echo "Detected services: $SERVICES"
+          echo "services=$SERVICES" >> $GITHUB_OUTPUT
+
+  policy-check:
+    name: Check ${{ matrix.service }}
+    runs-on: ubuntu-latest
+    needs: detect-changes
+    if: needs.detect-changes.outputs.services != '[]'
+    strategy:
+      matrix:
+        service: ${{ fromJson(needs.detect-changes.outputs.services) }}
+      fail-fast: false
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.22'
+
+      - name: Install dependencies
+        run: |
+          # Install kustomize
+          curl -s "https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh" | bash
+          sudo mv kustomize /usr/local/bin/
+          
+          # Install OPA
+          curl -L -o opa https://openpolicyagent.org/downloads/latest/opa_linux_amd64
+          chmod +x opa
+          sudo mv opa /usr/local/bin/
+          
+          # Install gitops-kustomz
+          go install github.com/gh-nvat/gitops-kustomz@latest
+
+      - name: Run policy check (all environments)
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # Check all environments in one run (generates combined report)
+          gitops-kustomz \
+            --run-mode github \
+            --gh-repo ${{ github.repository }} \
+            --gh-pr-number ${{ github.event.pull_request.number }} \
+            --service ${{ matrix.service }} \
+            --environments sandbox,stg,prod \
+            --policies-path ./policies
+        continue-on-error: true
+
+      - name: Check result
+        if: failure()
+        run: |
+          echo "::error::Policy check failed for ${{ matrix.service }}"
+          exit 1
+

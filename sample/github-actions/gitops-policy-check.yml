@@ -1,0 +1,129 @@
+name: GitOps Policy Check
+
+on:
+  pull_request:
+    paths:
+      - 'services/**'  # Adjust to match your manifests path
+      - 'policies/**'  # Trigger when policies change too
+
+permissions:
+  contents: read
+  pull-requests: write  # Required to post comments
+
+jobs:
+  detect-changes:
+    name: Detect Changed Services
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.set-matrix.outputs.matrix }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Need full history for diff
+
+      - name: Detect changed services and environments
+        id: set-matrix
+        run: |
+          # Get list of changed files
+          CHANGED_FILES=$(git diff --name-only origin/${{ github.base_ref }}...HEAD)
+          
+          # Extract unique service-environment combinations
+          # Assumes structure: services/<service>/environments/<env>/
+          SERVICES=$(echo "$CHANGED_FILES" | \
+            grep -E '^services/[^/]+/environments/[^/]+/' | \
+            sed -E 's|^services/([^/]+)/environments/([^/]+)/.*|\1:\2|' | \
+            sort -u)
+          
+          if [ -z "$SERVICES" ]; then
+            echo "No service changes detected"
+            echo "matrix={\"include\":[]}" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+          
+          # Build JSON matrix
+          MATRIX_JSON=$(echo "$SERVICES" | jq -R -s -c '
+            split("\n") | 
+            map(select(length > 0)) | 
+            map(split(":") | {service: .[0], environment: .[1]}) |
+            {include: .}
+          ')
+          
+          echo "Detected changes:"
+          echo "$MATRIX_JSON" | jq .
+          echo "matrix=$MATRIX_JSON" >> $GITHUB_OUTPUT
+
+  policy-check:
+    name: Check ${{ matrix.service }} (${{ matrix.environment }})
+    runs-on: ubuntu-latest
+    needs: detect-changes
+    if: needs.detect-changes.outputs.matrix != '{"include":[]}'
+    strategy:
+      matrix: ${{ fromJson(needs.detect-changes.outputs.matrix) }}
+      fail-fast: false  # Continue checking all services even if one fails
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.22'
+
+      - name: Install kustomize
+        run: |
+          curl -s "https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh" | bash
+          sudo mv kustomize /usr/local/bin/
+
+      - name: Install OPA
+        run: |
+          curl -L -o opa https://openpolicyagent.org/downloads/latest/opa_linux_amd64
+          chmod +x opa
+          sudo mv opa /usr/local/bin/
+
+      - name: Install gitops-kustomz
+        run: |
+          go install github.com/gh-nvat/gitops-kustomz@latest
+          # Or use a specific version:
+          # go install github.com/gh-nvat/gitops-kustomz@v1.0.0
+
+      - name: Run policy check
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gitops-kustomz \
+            --run-mode github \
+            --gh-repo ${{ github.repository }} \
+            --gh-pr-number ${{ github.event.pull_request.number }} \
+            --service ${{ matrix.service }} \
+            --environments ${{ matrix.environment }} \
+            --policies-path ./policies \
+            --templates-path ./templates
+        continue-on-error: true  # Don't fail the job, let the tool determine pass/fail
+
+      - name: Check result
+        if: failure()
+        run: |
+          echo "::error::Policy check failed for ${{ matrix.service }} (${{ matrix.environment }})"
+          exit 1
+
+  # Optional: Aggregate results
+  policy-check-summary:
+    name: Policy Check Summary
+    runs-on: ubuntu-latest
+    needs: [detect-changes, policy-check]
+    if: always()
+    steps:
+      - name: Check overall status
+        run: |
+          if [ "${{ needs.policy-check.result }}" == "failure" ]; then
+            echo "::error::One or more policy checks failed"
+            exit 1
+          elif [ "${{ needs.policy-check.result }}" == "success" ]; then
+            echo "✅ All policy checks passed"
+          else
+            echo "ℹ️ No policy checks needed"
+          fi
+
