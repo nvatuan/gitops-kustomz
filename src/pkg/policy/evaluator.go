@@ -57,7 +57,7 @@ func (e *Evaluator) LoadAndValidate(configPath, policiesPath string) (*config.Co
 		}
 
 		// Check for test file
-		testPath := strings.TrimSuffix(policyPath, ".opa") + "_test.opa"
+		testPath := strings.TrimSuffix(policyPath, ".rego") + "_test.rego"
 		if _, err := os.Stat(testPath); os.IsNotExist(err) {
 			return nil, fmt.Errorf("policy %s: test file not found: %s", id, testPath)
 		}
