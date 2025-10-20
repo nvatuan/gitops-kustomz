@@ -1,0 +1,108 @@
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version_bump:
+        description: 'Version bump type'
+        required: true
+        type: choice
+        options:
+          - PATCH
+          - MINOR
+          - MAJOR
+
+jobs:
+  release:
+    name: Create Release
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: 'go.mod'
+
+      - name: Get latest tag
+        id: get_version
+        run: |
+          # Get the latest tag, default to v0.0.0 if no tags exist
+          LATEST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
+          echo "latest_tag=$LATEST_TAG" >> $GITHUB_OUTPUT
+          
+          # Remove 'v' prefix for version manipulation
+          VERSION=${LATEST_TAG#v}
+          
+          # Split version into major, minor, patch
+          IFS='.' read -r MAJOR MINOR PATCH <<< "$VERSION"
+          
+          # Bump version based on input
+          case "${{ github.event.inputs.version_bump }}" in
+            MAJOR)
+              MAJOR=$((MAJOR + 1))
+              MINOR=0
+              PATCH=0
+              ;;
+            MINOR)
+              MINOR=$((MINOR + 1))
+              PATCH=0
+              ;;
+            PATCH)
+              PATCH=$((PATCH + 1))
+              ;;
+          esac
+          
+          NEW_VERSION="v${MAJOR}.${MINOR}.${PATCH}"
+          echo "new_version=$NEW_VERSION" >> $GITHUB_OUTPUT
+          echo "Building release $NEW_VERSION (from $LATEST_TAG)"
+
+      - name: Build binaries
+        run: |
+          VERSION="${{ steps.get_version.outputs.new_version }}"
+          BUILD_TIME=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+          LDFLAGS="-X main.Version=$VERSION -X main.BuildTime=$BUILD_TIME"
+          OUTPUT_DIR="dist"
+          mkdir -p "$OUTPUT_DIR"
+          
+          # Build for Linux AMD64
+          GOOS=linux GOARCH=amd64 go build -ldflags "$LDFLAGS" -o "$OUTPUT_DIR/gitops-kustomz-linux-amd64" ./cmd/gitops-kustomz
+          
+          # Build for Linux ARM64
+          GOOS=linux GOARCH=arm64 go build -ldflags "$LDFLAGS" -o "$OUTPUT_DIR/gitops-kustomz-linux-arm64" ./cmd/gitops-kustomz
+          
+          # Build for macOS AMD64
+          GOOS=darwin GOARCH=amd64 go build -ldflags "$LDFLAGS" -o "$OUTPUT_DIR/gitops-kustomz-darwin-amd64" ./cmd/gitops-kustomz
+          
+          # Build for macOS ARM64
+          GOOS=darwin GOARCH=arm64 go build -ldflags "$LDFLAGS" -o "$OUTPUT_DIR/gitops-kustomz-darwin-arm64" ./cmd/gitops-kustomz
+          
+          # Create checksums
+          cd "$OUTPUT_DIR"
+          sha256sum gitops-kustomz-* > checksums.txt
+          cd ..
+          
+          ls -lh "$OUTPUT_DIR"
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ steps.get_version.outputs.new_version }}
+          name: Release ${{ steps.get_version.outputs.new_version }}
+          draft: false
+          prerelease: false
+          generate_release_notes: true
+          files: |
+            dist/gitops-kustomz-linux-amd64
+            dist/gitops-kustomz-linux-arm64
+            dist/gitops-kustomz-darwin-amd64
+            dist/gitops-kustomz-darwin-arm64
+            dist/checksums.txt
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
