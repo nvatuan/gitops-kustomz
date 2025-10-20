@@ -15,8 +15,21 @@ const (
 	KUSTOMIZE_FILE_NAME = "kustomization.yaml"
 )
 
+// KustomizeBuilder defines the interface for building Kubernetes manifests
+type KustomizeBuilder interface {
+	// Build runs kustomize build on the specified path
+	Build(ctx context.Context, path string) ([]byte, error)
+	// ValidateServiceEnvironment checks if a service/environment combination exists
+	ValidateServiceEnvironment(manifestsPath, service, environment string) error
+	// GetServiceEnvironmentPath returns the path to build for a service/environment
+	GetServiceEnvironmentPath(manifestsPath, service, environment string) string
+}
+
 // Builder handles kustomize builds
 type Builder struct{}
+
+// Ensure Builder implements KustomizeBuilder
+var _ KustomizeBuilder = (*Builder)(nil)
 
 // NewBuilder creates a new kustomize builder
 func NewBuilder() *Builder {

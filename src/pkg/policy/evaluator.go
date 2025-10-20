@@ -24,10 +24,27 @@ const (
 	POLICY_LEVEL_BLOCK     = "BLOCK"
 )
 
+// PolicyEvaluator defines the interface for policy evaluation operations
+type PolicyEvaluator interface {
+	// LoadAndValidate loads and validates the compliance configuration
+	LoadAndValidate(configPath, policiesPath string) (*config.ComplianceConfig, error)
+	// Evaluate evaluates all policies against the manifest
+	Evaluate(ctx context.Context, manifest []byte, cfg *config.ComplianceConfig, policiesPath string) (*config.EvaluationResult, error)
+	// CheckOverrides checks for policy override comments in PR comments
+	CheckOverrides(comments []*config.Comment, cfg *config.ComplianceConfig) map[string]bool
+	// Enforce determines if the evaluation result should block the PR
+	Enforce(result *config.EvaluationResult, overrides map[string]bool) *config.EnforcementResult
+	// ApplyOverrides applies policy overrides to the evaluation result
+	ApplyOverrides(result *config.EvaluationResult, overrides map[string]bool)
+}
+
 // Evaluator handles policy evaluation
 type Evaluator struct {
 	loader *config.Loader
 }
+
+// Ensure Evaluator implements PolicyEvaluator
+var _ PolicyEvaluator = (*Evaluator)(nil)
 
 // NewEvaluator creates a new policy evaluator
 func NewEvaluator() *Evaluator {

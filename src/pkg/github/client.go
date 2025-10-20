@@ -11,10 +11,27 @@ import (
 	"golang.org/x/oauth2"
 )
 
+// GitHubClient defines the interface for GitHub API operations
+type GitHubClient interface {
+	// GetPR retrieves pull request information
+	GetPR(ctx context.Context, owner, repo string, number int) (*config.PullRequest, error)
+	// CreateComment creates a new comment on a pull request
+	CreateComment(ctx context.Context, owner, repo string, number int, body string) (*config.Comment, error)
+	// UpdateComment updates an existing comment
+	UpdateComment(ctx context.Context, owner, repo string, commentID int64, body string) error
+	// GetComments retrieves all comments for a pull request
+	GetComments(ctx context.Context, owner, repo string, number int) ([]*config.Comment, error)
+	// FindToolComment finds an existing tool-generated comment by marker
+	FindToolComment(ctx context.Context, owner, repo string, number int, marker string) (*config.Comment, error)
+}
+
 // Client handles GitHub API interactions using go-github
 type Client struct {
 	client *github.Client
 }
+
+// Ensure Client implements GitHubClient
+var _ GitHubClient = (*Client)(nil)
 
 // NewClient creates a new GitHub client
 func NewClient() (*Client, error) {

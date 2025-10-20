@@ -8,8 +8,17 @@ import (
 	"strings"
 )
 
+// ManifestDiffer defines the interface for comparing Kubernetes manifests
+type ManifestDiffer interface {
+	// Diff compares two manifests and returns a unified diff
+	Diff(base, head []byte) (string, error)
+}
+
 // Differ handles manifest diffing
 type Differ struct{}
+
+// Ensure Differ implements ManifestDiffer
+var _ ManifestDiffer = (*Differ)(nil)
 
 // NewDiffer creates a new differ
 func NewDiffer() *Differ {

@@ -7,8 +7,19 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
+// ConfigLoader defines the interface for loading configuration files
+type ConfigLoader interface {
+	// LoadComplianceConfig loads the compliance configuration from a YAML file
+	LoadComplianceConfig(path string) (*ComplianceConfig, error)
+	// ValidateComplianceConfig validates the compliance configuration
+	ValidateComplianceConfig(config *ComplianceConfig) error
+}
+
 // Loader handles loading configuration files
 type Loader struct{}
+
+// Ensure Loader implements ConfigLoader
+var _ ConfigLoader = (*Loader)(nil)
 
 // NewLoader creates a new configuration loader
 func NewLoader() *Loader {

@@ -8,10 +8,21 @@ import (
 	"text/template"
 )
 
+// TemplateRenderer defines the interface for rendering markdown templates
+type TemplateRenderer interface {
+	// RenderWithTemplates renders templates from a directory with support for includes
+	RenderWithTemplates(templateDir string, data interface{}) (string, error)
+	// RenderString renders a template string directly
+	RenderString(templateStr string, data interface{}) (string, error)
+}
+
 // Renderer handles template rendering
 type Renderer struct {
 	funcMap template.FuncMap
 }
+
+// Ensure Renderer implements TemplateRenderer
+var _ TemplateRenderer = (*Renderer)(nil)
 
 // NewRenderer creates a new template renderer
 func NewRenderer() *Renderer {
