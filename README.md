@@ -22,21 +22,47 @@ GitOps policy enforcement tool for Kubernetes manifests managed with Kustomize.
 ## Quick Start
 
 ```bash
-# Run on a PR
+# Run on a PR (GitHub mode)
 gitops-kustomz \
-  --repo owner/repo \
-  --pr-number 123 \
+  --run-mode github \
+  --gh-repo owner/repo \
+  --gh-pr-number 123 \
   --service my-app \
-  --environment stg \
-  --manifests-path ./services \
-  --policies-path ./policies
+  --environments stg,prod \
+  --policies-path ./policies \
+  --templates-path ./templates
 
 # Local testing
-gitops-kustomz --local-mode \
-  --base-manifest ./base.yaml \
-  --head-manifest ./head.yaml \
+gitops-kustomz \
+  --run-mode local \
+  --service my-app \
+  --environments stg,prod \
+  --lc-before ./before/services/my-app/environments \
+  --lc-after ./after/services/my-app/environments \
   --policies-path ./policies \
-  --local-output-dir ./output
+  --templates-path ./src/templates \
+  --lc-output-dir ./output
+```
+
+## 📁 Project Structure
+
+```
+.
+├── src/
+│   ├── cmd/gitops-kustomz/    # CLI entry point
+│   ├── pkg/                   # Core packages
+│   │   ├── config/            # Configuration types
+│   │   ├── diff/              # Manifest diffing
+│   │   ├── github/            # GitHub API client
+│   │   ├── kustomize/         # Kustomize builder
+│   │   ├── policy/            # Policy evaluation (OPA)
+│   │   └── template/          # Markdown templating
+│   ├── internal/              # Internal utilities
+│   └── templates/             # Default markdown templates
+├── sample/                    # Example policies & manifests
+├── test/                      # Test data
+├── go.mod                     # Go module definition
+└── Makefile                   # Build automation
 ```
 
 ## Documentation
@@ -64,10 +90,16 @@ git clone https://github.com/gh-nvat/gitops-kustomz.git
 cd gitops-kustomz
 
 # Build
-go build -o gitops-kustomz ./cmd
+make build
 
 # Run tests
-go test ./...
+make test
+
+# Run linter
+make lint
+
+# Local testing mode
+make run-local
 ```
 
 ## License

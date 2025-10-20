@@ -3,7 +3,7 @@
 # Binary name and paths
 BINARY_NAME=gitops-kustomz
 BIN_DIR=bin
-MAIN_PATH=./cmd/gitops-kustomz
+MAIN_PATH=./src/cmd/gitops-kustomz
 
 # Build variables
 VERSION?=$(shell git describe --tags --always --dirty 2>/dev/null || echo "dev")
@@ -42,6 +42,7 @@ run-local: build
 		--lc-before test/local/before/services/my-app/environments \
 		--lc-after test/local/after/services/my-app/environments \
 		--policies-path sample/policies \
+		--templates-path src/templates \
 		--lc-output-dir test/output
 	@echo ""
 	@echo "📄 Reports generated:"

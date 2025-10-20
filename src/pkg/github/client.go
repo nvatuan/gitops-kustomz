@@ -9,7 +9,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/gh-nvat/gitops-kustomz/pkg/config"
+	"github.com/gh-nvat/gitops-kustomz/src/pkg/config"
 )
 
 // Client handles GitHub API interactions
