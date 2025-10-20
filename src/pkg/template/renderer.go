@@ -106,87 +106,76 @@ func (r *Renderer) RenderString(templateStr string, data interface{}) (string, e
 }
 
 // GetDefaultCommentTemplate returns the default comment template
+// This template supports MultiEnvCommentData structure
 func (r *Renderer) GetDefaultCommentTemplate() string {
-	return `<!-- gitops-kustomz: {{.Service}}-{{.Environment}} -->
+	return `<!-- gitops-kustomz: {{.Service}} -->
 
-# 🔍 GitOps Policy Check: {{.Service}} ({{.Environment}})
+# 🔍 GitOps Policy Check: {{.Service}}
 
-**Base Commit:** ` + "`{{.BaseCommit}}`" + `
-**Head Commit:** ` + "`{{.HeadCommit}}`" + `
-**Timestamp:** {{.Timestamp}}
-
----
-
-## 📊 Summary
-
-{{if .Diff.HasChanges}}
-✏️ **Changes detected in manifests** ({{.Diff.LineCount}} lines changed)
-{{else}}
-✅ **No changes detected**
-{{end}}
-
-{{if .PolicyReport}}
-**Policy Evaluation:**
-- **Total:** {{.PolicyReport.TotalPolicies}}
-- **Passed:** {{.PolicyReport.PassedPolicies}} ✅
-- **Failed:** {{.PolicyReport.FailedPolicies}} ❌
-{{if gt .PolicyReport.ErroredPolicies 0}}- **Errored:** {{.PolicyReport.ErroredPolicies}} ⚠️{{end}}
-
-{{if gt .PolicyReport.FailedPolicies 0}}**Failures by Level:**
-{{if gt .PolicyReport.BlockingFailures 0}}- 🚫 Blocking: {{.PolicyReport.BlockingFailures}}{{end}}
-{{if gt .PolicyReport.WarningFailures 0}}- ⚠️  Warning: {{.PolicyReport.WarningFailures}}{{end}}
-{{if gt .PolicyReport.RecommendFailures 0}}- 💡 Recommend: {{.PolicyReport.RecommendFailures}}{{end}}
-{{end}}
-{{end}}
+**Timestamp:** {{.Timestamp.Format "2006-01-02 15:04:05 UTC"}}  
+**Base:** ` + "`{{.BaseCommit}}`" + ` → **Head:** ` + "`{{.HeadCommit}}`" + `  
+**Environments:** {{range $i, $env := .Environments}}{{if $i}}, {{end}}` + "`{{$env}}`" + `{{end}}
 
 ---
 
-## 📝 Manifest Diff
+## 📊 Manifest Changes
 
-{{if .Diff.HasChanges}}
-{{if gt .Diff.LineCount 50}}
+{{if .EnvironmentDiffs}}
+{{range .EnvironmentDiffs}}
+### {{.Environment}}
+
+{{if .HasChanges}}
+**Lines changed:** {{.LineCount}}
+
 <details>
-<summary>Click to expand diff ({{.Diff.LineCount}} lines)</summary>
+<summary>Click to expand {{.Environment}} diff</summary>
 
 ` + "```diff" + `
-{{.Diff.Content}}
+{{.Content}}
 ` + "```" + `
 
 </details>
 {{else}}
-` + "```diff" + `
-{{.Diff.Content}}
-` + "```" + `
+✅ No changes detected.
+{{end}}
+
 {{end}}
 {{else}}
-_No changes detected between base and head._
+✅ No changes detected.
 {{end}}
 
 ---
 
 ## 🛡️ Policy Evaluation Results
 
-{{range .PolicyReport.Details}}
-### {{.Name}} - {{.Status}} {{if .Overridden}}(Overridden){{end}}
+### Summary
 
-**Level:** {{.Level}}
-
-{{if eq .Status "ERROR"}}
-⚠️ **Error:** {{.Error}}
-{{else if eq .Status "FAIL"}}
-{{if .Overridden}}
-✋ **Policy failed but was overridden**
-{{else}}
-❌ **Policy violations:**
-{{range .Violations}}
-- {{.}}
-{{end}}
-{{end}}
-{{else}}
-✅ **Passed**
+{{range $env, $sum := .MultiEnvPolicyReport.Summary}}
+**{{$env}}:** {{$sum.PassedPolicies}}/{{$sum.TotalPolicies}} passed{{if gt $sum.FailedPolicies 0}} | ❌ {{$sum.FailedPolicies}} failed{{end}}{{if gt $sum.ErroredPolicies 0}} | 💥 {{$sum.ErroredPolicies}} errored{{end}}  
 {{end}}
 
----
+### Policy Matrix
+
+| Policy | Enforcement |{{range .MultiEnvPolicyReport.Environments}} {{.}} |{{end}}
+|--------|-------------|{{range .MultiEnvPolicyReport.Environments}}--------|{{end}}
+{{range $policy := .MultiEnvPolicyReport.Policies}}| {{$policy.Name}} | {{$policy.Level}} |{{range $env := $.MultiEnvPolicyReport.Environments}}{{$result := index $policy.Results $env}} {{if $result}}{{$result.Status}}{{else}}N/A{{end}} |{{end}}
+{{end}}
+
+{{range $env, $sum := .MultiEnvPolicyReport.Summary}}
+{{if gt $sum.FailedPolicies 0}}
+### ⚠️ Failed Policies in {{$env}}
+
+{{range $.MultiEnvPolicyReport.Policies}}
+{{$result := index .Results $env}}
+{{if and $result (ne $result.Status "PASS")}}
+#### {{.Name}}
+- **Enforcement:** {{.Level}}
+{{if $result.Violations}}- **Violations:**{{range $result.Violations}}
+  - {{.}}{{end}}{{end}}
+{{if $result.Error}}- **Error:** {{$result.Error}}{{end}}
+{{end}}
+{{end}}
+{{end}}
 {{end}}
 
 ---
