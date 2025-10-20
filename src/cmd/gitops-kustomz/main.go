@@ -223,18 +223,44 @@ func run(ctx context.Context, opts *options) error {
 
 		fmt.Printf("✅ Combined report written to: %s\n", outputFile)
 	} else {
-		// Update GitHub comment
+		// Post or update GitHub comment
+		fmt.Println("💬 Posting results to GitHub PR...")
 		owner, repo := parseRepo(opts.ghRepo)
 		marker := fmt.Sprintf("<!-- gitops-kustomz: %s -->", opts.service)
 
-		ghClient, _ := github.NewClient()
-		existingComment, _ := ghClient.FindToolComment(ctx, owner, repo, opts.ghPrNumber, marker)
+		fmt.Printf("   Repository: %s/%s\n", owner, repo)
+		fmt.Printf("   PR Number: #%d\n", opts.ghPrNumber)
+		fmt.Printf("   Comment Marker: %s\n", marker)
+
+		fmt.Println("   Authenticating with GitHub...")
+		ghClient, err := github.NewClient()
+		if err != nil {
+			return fmt.Errorf("failed to create GitHub client: %w (check GH_TOKEN environment variable)", err)
+		}
+		fmt.Println("   ✓ GitHub client authenticated")
+
+		fmt.Println("   Searching for existing comment...")
+		existingComment, err := ghClient.FindToolComment(ctx, owner, repo, opts.ghPrNumber, marker)
+		if err != nil {
+			fmt.Printf("   ⚠️  Failed to search for existing comment: %v\n", err)
+			fmt.Println("   Will attempt to create new comment anyway...")
+		}
 
 		if existingComment != nil {
+			// Update existing comment
+			fmt.Printf("   Found existing comment (ID: %d), updating...\n", existingComment.ID)
 			if err := ghClient.UpdateComment(ctx, owner, repo, existingComment.ID, renderedComment); err != nil {
-				return fmt.Errorf("failed to update final comment: %w", err)
+				return fmt.Errorf("failed to update comment: %w", err)
 			}
-			fmt.Println("✅ GitHub comment updated")
+			fmt.Println("✅ GitHub comment updated successfully")
+		} else {
+			// Create new comment
+			fmt.Println("   No existing comment found, creating new comment...")
+			newComment, err := ghClient.CreateComment(ctx, owner, repo, opts.ghPrNumber, renderedComment)
+			if err != nil {
+				return fmt.Errorf("failed to create comment: %w", err)
+			}
+			fmt.Printf("✅ GitHub comment created successfully (ID: %d)\n", newComment.ID)
 		}
 	}
 
