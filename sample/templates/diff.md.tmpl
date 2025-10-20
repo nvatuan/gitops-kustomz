@@ -2,12 +2,12 @@
 
 {{if .EnvironmentDiffs}}
 {{range .EnvironmentDiffs}}
-### {{.Environment}}
+### [`{{.Environment}}`]
 
 {{if .HasChanges}}
-**Lines changed:** {{.LineCount}}
+* **Lines changed:** {{.LineCount}}
 
-<details>
+<details open>
 <summary>Click to expand {{.Environment}} diff</summary>
 
 ```diff
@@ -16,11 +16,15 @@
 
 </details>
 {{else}}
+```
 ✅ No changes detected.
+```
 {{end}}
 
 {{end}}
 {{else}}
+```
 ✅ No changes detected.
+```
 {{end}}
 

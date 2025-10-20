@@ -18,6 +18,8 @@ import (
 	"github.com/spf13/cobra"
 )
 
+const COMMENT_MARKER = "<!-- gitops-kustomz: auto-generated comment, please do not remove -->"
+
 var (
 	Version   = "dev"
 	BuildTime = "unknown"
@@ -210,6 +212,9 @@ func run(ctx context.Context, opts *options) error {
 		}
 	}
 
+	// Always prepend the marker to the rendered content (both local and GitHub modes)
+	finalComment := COMMENT_MARKER + "\n\n" + renderedComment
+
 	// Save output
 	if opts.runMode == "local" {
 		if err := os.MkdirAll(opts.lcOutputDir, 0755); err != nil {
@@ -217,7 +222,7 @@ func run(ctx context.Context, opts *options) error {
 		}
 
 		outputFile := filepath.Join(opts.lcOutputDir, fmt.Sprintf("%s-report.md", opts.service))
-		if err := os.WriteFile(outputFile, []byte(renderedComment), 0644); err != nil {
+		if err := os.WriteFile(outputFile, []byte(finalComment), 0644); err != nil {
 			return fmt.Errorf("failed to write output file: %w", err)
 		}
 
@@ -226,11 +231,9 @@ func run(ctx context.Context, opts *options) error {
 		// Post or update GitHub comment
 		fmt.Println("💬 Posting results to GitHub PR...")
 		owner, repo := parseRepo(opts.ghRepo)
-		marker := fmt.Sprintf("<!-- gitops-kustomz: %s - auto-generated comment, please do not remove -->", opts.service)
 
 		fmt.Printf("   Repository: %s/%s\n", owner, repo)
 		fmt.Printf("   PR Number: #%d\n", opts.ghPrNumber)
-		fmt.Printf("   Comment Marker: %s\n", marker)
 
 		fmt.Println("   Authenticating with GitHub...")
 		ghClient, err := github.NewClient()
@@ -248,7 +251,7 @@ func run(ctx context.Context, opts *options) error {
 		} else {
 			matchingCount := 0
 			for _, c := range allComments {
-				if strings.Contains(c.Body, marker) {
+				if strings.Contains(c.Body, COMMENT_MARKER) {
 					matchingCount++
 				}
 			}
@@ -257,7 +260,7 @@ func run(ctx context.Context, opts *options) error {
 			}
 		}
 
-		existingComment, err := ghClient.FindToolComment(ctx, owner, repo, opts.ghPrNumber, marker)
+		existingComment, err := ghClient.FindToolComment(ctx, owner, repo, opts.ghPrNumber)
 		if err != nil {
 			fmt.Printf("   ⚠️  Failed to search for existing comment: %v\n", err)
 			fmt.Println("   Will attempt to create new comment anyway...")
@@ -266,14 +269,14 @@ func run(ctx context.Context, opts *options) error {
 		if existingComment != nil {
 			// Update existing comment
 			fmt.Printf("   Found existing comment (ID: %d), updating...\n", existingComment.ID)
-			if err := ghClient.UpdateComment(ctx, owner, repo, existingComment.ID, renderedComment); err != nil {
+			if err := ghClient.UpdateComment(ctx, owner, repo, existingComment.ID, finalComment); err != nil {
 				return fmt.Errorf("failed to update comment: %w", err)
 			}
 			fmt.Println("✅ GitHub comment updated successfully")
 		} else {
 			// Create new comment
 			fmt.Println("   No existing comment found, creating new comment...")
-			newComment, err := ghClient.CreateComment(ctx, owner, repo, opts.ghPrNumber, renderedComment)
+			newComment, err := ghClient.CreateComment(ctx, owner, repo, opts.ghPrNumber, finalComment)
 			if err != nil {
 				return fmt.Errorf("failed to create comment: %w", err)
 			}

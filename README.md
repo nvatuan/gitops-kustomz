@@ -78,11 +78,38 @@ gitops-kustomz \
 └── Makefile                   # Build automation
 ```
 
+## Template Customization
+
+The tool supports custom markdown templates for GitHub comments. Templates use Go's `text/template` syntax with rich data structures.
+
+### Quick Template Examples
+
+```go
+// Service and environment info
+{{.Service}} - {{range .Environments}}{{.}} {{end}}
+
+// Timestamp formatting
+{{.Timestamp.Format "2006-01-02 15:04:05 UTC"}}
+
+// Conditional rendering
+{{if gt .MultiEnvPolicyReport.Summary.stg.FailedPolicies 0}}
+  ⚠️ Staging has failed policies
+{{end}}
+
+// Policy status matrix
+{{range .MultiEnvPolicyReport.Policies}}
+  {{.Name}}: {{.Level}}
+{{end}}
+```
+
+See [docs/TEMPLATE_VARIABLES.md](./docs/TEMPLATE_VARIABLES.md) for complete reference.
+
 ## Documentation
 
 - [sample/github-actions/README.md](./sample/github-actions/README.md) - **GitHub Actions setup guide**
 - [docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md) - High-level architecture and use cases
 - [docs/DESIGN.md](./docs/DESIGN.md) - Detailed design and implementation specs
+- [docs/TEMPLATE_VARIABLES.md](./docs/TEMPLATE_VARIABLES.md) - **Template variables and functions reference**
 - [LOCAL_TESTING.md](./LOCAL_TESTING.md) - Local testing guide
 
 ## Requirements

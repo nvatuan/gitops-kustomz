@@ -7,9 +7,12 @@ import (
 	"strings"
 
 	"github.com/gh-nvat/gitops-kustomz/src/pkg/config"
+	"github.com/gh-nvat/gitops-kustomz/src/pkg/template"
 	"github.com/google/go-github/v66/github"
 	"golang.org/x/oauth2"
 )
+
+const GH_COMMENT_MARKER = template.DefaultCommentTemplate
 
 // GitHubClient defines the interface for GitHub API operations
 type GitHubClient interface {
@@ -21,8 +24,8 @@ type GitHubClient interface {
 	UpdateComment(ctx context.Context, owner, repo string, commentID int64, body string) error
 	// GetComments retrieves all comments for a pull request
 	GetComments(ctx context.Context, owner, repo string, number int) ([]*config.Comment, error)
-	// FindToolComment finds an existing tool-generated comment by marker
-	FindToolComment(ctx context.Context, owner, repo string, number int, marker string) (*config.Comment, error)
+	// FindToolComment finds an existing tool-generated comment
+	FindToolComment(ctx context.Context, owner, repo string, number int) (*config.Comment, error)
 }
 
 // Client handles GitHub API interactions using go-github
@@ -128,9 +131,9 @@ func (c *Client) GetComments(ctx context.Context, owner, repo string, number int
 	return allComments, nil
 }
 
-// FindToolComment finds an existing tool-generated comment for the service-environment
+// FindToolComment finds an existing tool-generated comment
 // If multiple comments with the same marker exist, returns the latest one (highest ID)
-func (c *Client) FindToolComment(ctx context.Context, owner, repo string, number int, marker string) (*config.Comment, error) {
+func (c *Client) FindToolComment(ctx context.Context, owner, repo string, number int) (*config.Comment, error) {
 	comments, err := c.GetComments(ctx, owner, repo, number)
 	if err != nil {
 		return nil, err
@@ -138,7 +141,7 @@ func (c *Client) FindToolComment(ctx context.Context, owner, repo string, number
 
 	var latestComment *config.Comment
 	for _, comment := range comments {
-		if strings.Contains(comment.Body, marker) {
+		if strings.Contains(comment.Body, GH_COMMENT_MARKER) {
 			// If multiple comments exist, keep the one with the highest ID (latest)
 			if latestComment == nil || comment.ID > latestComment.ID {
 				latestComment = comment
