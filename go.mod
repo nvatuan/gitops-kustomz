@@ -1,6 +1,8 @@
 module github.com/gh-nvat/gitops-kustomz
 
-go 1.22
+go 1.24.0
+
+toolchain go1.24.2
 
 require (
 	github.com/open-policy-agent/opa v0.60.0
@@ -19,6 +21,8 @@ require (
 	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/gobwas/glob v0.2.3 // indirect
 	github.com/golang/protobuf v1.5.3 // indirect
+	github.com/google/go-github/v66 v66.0.0 // indirect
+	github.com/google/go-querystring v1.1.0 // indirect
 	github.com/google/uuid v1.5.0 // indirect
 	github.com/gorilla/mux v1.8.1 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
@@ -40,6 +44,7 @@ require (
 	go.opentelemetry.io/otel/metric v1.21.0 // indirect
 	go.opentelemetry.io/otel/sdk v1.21.0 // indirect
 	go.opentelemetry.io/otel/trace v1.21.0 // indirect
+	golang.org/x/oauth2 v0.32.0 // indirect
 	golang.org/x/sys v0.17.0 // indirect
 	google.golang.org/protobuf v1.33.0 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect

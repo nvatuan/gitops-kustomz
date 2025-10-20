@@ -2,21 +2,18 @@ package github
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
-	"io"
-	"net/http"
 	"os"
 	"strings"
 
 	"github.com/gh-nvat/gitops-kustomz/src/pkg/config"
+	"github.com/google/go-github/v66/github"
+	"golang.org/x/oauth2"
 )
 
-// Client handles GitHub API interactions
+// Client handles GitHub API interactions using go-github
 type Client struct {
-	token      string
-	httpClient *http.Client
-	baseURL    string
+	client *github.Client
 }
 
 // NewClient creates a new GitHub client
@@ -29,140 +26,57 @@ func NewClient() (*Client, error) {
 		return nil, fmt.Errorf("GitHub token not found. Set GH_TOKEN or GITHUB_TOKEN environment variable")
 	}
 
+	ts := oauth2.StaticTokenSource(&oauth2.Token{AccessToken: token})
+	tc := oauth2.NewClient(context.Background(), ts)
+	client := github.NewClient(tc)
+
 	return &Client{
-		token:      token,
-		httpClient: &http.Client{},
-		baseURL:    "https://api.github.com",
+		client: client,
 	}, nil
 }
 
 // GetPR retrieves pull request information
 func (c *Client) GetPR(ctx context.Context, owner, repo string, number int) (*config.PullRequest, error) {
-	url := fmt.Sprintf("%s/repos/%s/%s/pulls/%d", c.baseURL, owner, repo, number)
-
-	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create request: %w", err)
-	}
-
-	req.Header.Set("Authorization", "Bearer "+c.token)
-	req.Header.Set("Accept", "application/vnd.github.v3+json")
-
-	resp, err := c.httpClient.Do(req)
+	pr, _, err := c.client.PullRequests.Get(ctx, owner, repo, number)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get PR: %w", err)
 	}
-	defer func() {
-		_ = resp.Body.Close()
-	}()
-
-	if resp.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(resp.Body)
-		return nil, fmt.Errorf("GitHub API returned status %d: %s", resp.StatusCode, string(body))
-	}
-
-	var prData struct {
-		Number int `json:"number"`
-		Base   struct {
-			Ref string `json:"ref"`
-			SHA string `json:"sha"`
-		} `json:"base"`
-		Head struct {
-			Ref string `json:"ref"`
-			SHA string `json:"sha"`
-		} `json:"head"`
-	}
-
-	if err := json.NewDecoder(resp.Body).Decode(&prData); err != nil {
-		return nil, fmt.Errorf("failed to decode PR response: %w", err)
-	}
 
 	return &config.PullRequest{
-		Number:  prData.Number,
-		BaseRef: prData.Base.Ref,
-		BaseSHA: prData.Base.SHA,
-		HeadRef: prData.Head.Ref,
-		HeadSHA: prData.Head.SHA,
+		Number:  pr.GetNumber(),
+		BaseRef: pr.GetBase().GetRef(),
+		BaseSHA: pr.GetBase().GetSHA(),
+		HeadRef: pr.GetHead().GetRef(),
+		HeadSHA: pr.GetHead().GetSHA(),
 	}, nil
 }
 
 // CreateComment creates a new comment on a pull request
 func (c *Client) CreateComment(ctx context.Context, owner, repo string, number int, body string) (*config.Comment, error) {
-	url := fmt.Sprintf("%s/repos/%s/%s/issues/%d/comments", c.baseURL, owner, repo, number)
-
-	payload := map[string]string{"body": body}
-	jsonData, err := json.Marshal(payload)
-	if err != nil {
-		return nil, fmt.Errorf("failed to marshal comment: %w", err)
+	comment := &github.IssueComment{
+		Body: github.String(body),
 	}
 
-	req, err := http.NewRequestWithContext(ctx, "POST", url, strings.NewReader(string(jsonData)))
-	if err != nil {
-		return nil, fmt.Errorf("failed to create request: %w", err)
-	}
-
-	req.Header.Set("Authorization", "Bearer "+c.token)
-	req.Header.Set("Accept", "application/vnd.github.v3+json")
-	req.Header.Set("Content-Type", "application/json")
-
-	resp, err := c.httpClient.Do(req)
+	created, _, err := c.client.Issues.CreateComment(ctx, owner, repo, number, comment)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create comment: %w", err)
 	}
-	defer func() {
-		_ = resp.Body.Close()
-	}()
-
-	if resp.StatusCode != http.StatusCreated {
-		body, _ := io.ReadAll(resp.Body)
-		return nil, fmt.Errorf("GitHub API returned status %d: %s", resp.StatusCode, string(body))
-	}
-
-	var commentData struct {
-		ID   int64  `json:"id"`
-		Body string `json:"body"`
-	}
-
-	if err := json.NewDecoder(resp.Body).Decode(&commentData); err != nil {
-		return nil, fmt.Errorf("failed to decode comment response: %w", err)
-	}
 
 	return &config.Comment{
-		ID:   commentData.ID,
-		Body: commentData.Body,
+		ID:   created.GetID(),
+		Body: created.GetBody(),
 	}, nil
 }
 
 // UpdateComment updates an existing comment
 func (c *Client) UpdateComment(ctx context.Context, owner, repo string, commentID int64, body string) error {
-	url := fmt.Sprintf("%s/repos/%s/%s/issues/comments/%d", c.baseURL, owner, repo, commentID)
-
-	payload := map[string]string{"body": body}
-	jsonData, err := json.Marshal(payload)
-	if err != nil {
-		return fmt.Errorf("failed to marshal comment: %w", err)
+	comment := &github.IssueComment{
+		Body: github.String(body),
 	}
 
-	req, err := http.NewRequestWithContext(ctx, "PATCH", url, strings.NewReader(string(jsonData)))
-	if err != nil {
-		return fmt.Errorf("failed to create request: %w", err)
-	}
-
-	req.Header.Set("Authorization", "Bearer "+c.token)
-	req.Header.Set("Accept", "application/vnd.github.v3+json")
-	req.Header.Set("Content-Type", "application/json")
-
-	resp, err := c.httpClient.Do(req)
+	_, _, err := c.client.Issues.EditComment(ctx, owner, repo, commentID, comment)
 	if err != nil {
 		return fmt.Errorf("failed to update comment: %w", err)
-	}
-	defer func() {
-		_ = resp.Body.Close()
-	}()
-
-	if resp.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(resp.Body)
-		return fmt.Errorf("GitHub API returned status %d: %s", resp.StatusCode, string(body))
 	}
 
 	return nil
@@ -170,47 +84,31 @@ func (c *Client) UpdateComment(ctx context.Context, owner, repo string, commentI
 
 // GetComments retrieves all comments for a pull request
 func (c *Client) GetComments(ctx context.Context, owner, repo string, number int) ([]*config.Comment, error) {
-	url := fmt.Sprintf("%s/repos/%s/%s/issues/%d/comments", c.baseURL, owner, repo, number)
-
-	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create request: %w", err)
+	opts := &github.IssueListCommentsOptions{
+		ListOptions: github.ListOptions{PerPage: 100},
 	}
 
-	req.Header.Set("Authorization", "Bearer "+c.token)
-	req.Header.Set("Accept", "application/vnd.github.v3+json")
-
-	resp, err := c.httpClient.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get comments: %w", err)
-	}
-	defer func() {
-		_ = resp.Body.Close()
-	}()
-
-	if resp.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(resp.Body)
-		return nil, fmt.Errorf("GitHub API returned status %d: %s", resp.StatusCode, string(body))
-	}
-
-	var commentsData []struct {
-		ID   int64  `json:"id"`
-		Body string `json:"body"`
-	}
-
-	if err := json.NewDecoder(resp.Body).Decode(&commentsData); err != nil {
-		return nil, fmt.Errorf("failed to decode comments response: %w", err)
-	}
-
-	comments := make([]*config.Comment, len(commentsData))
-	for i, c := range commentsData {
-		comments[i] = &config.Comment{
-			ID:   c.ID,
-			Body: c.Body,
+	var allComments []*config.Comment
+	for {
+		comments, resp, err := c.client.Issues.ListComments(ctx, owner, repo, number, opts)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get comments: %w", err)
 		}
+
+		for _, c := range comments {
+			allComments = append(allComments, &config.Comment{
+				ID:   c.GetID(),
+				Body: c.GetBody(),
+			})
+		}
+
+		if resp.NextPage == 0 {
+			break
+		}
+		opts.Page = resp.NextPage
 	}
 
-	return comments, nil
+	return allComments, nil
 }
 
 // FindToolComment finds an existing tool-generated comment for the service-environment
