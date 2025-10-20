@@ -37,7 +37,9 @@ For each environment diff:
 | `.Environment` | `string` | Environment name | `"stg"` |
 | `.HasChanges` | `bool` | Whether any changes detected | `true` |
 | `.Content` | `string` | Raw unified diff content | `"--- base\n+++ head\n..."` |
-| `.LineCount` | `int` | Number of diff lines | `31` |
+| `.LineCount` | `int` | Total number of changed lines | `10` |
+| `.AddedLineCount` | `int` | Number of added lines | `5` |
+| `.DeletedLineCount` | `int` | Number of deleted lines | `5` |
 
 ## Multi-Environment Policy Report (`.MultiEnvPolicyReport`)
 

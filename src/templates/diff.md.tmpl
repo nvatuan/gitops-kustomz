@@ -3,7 +3,7 @@
 {{if .EnvironmentDiffs}}
 {{range .EnvironmentDiffs}}
 
-### [`{{.Environment}}`]: {{if .HasChanges}}`{{.LineCount}}` line changes{{else}}No changes detected.{{end}}
+### [`{{.Environment}}`]: {{if .HasChanges}}`{{.LineCount}}` lines ({{.AddedLineCount}}➕/{{.DeletedLineCount}}➖){{else}}No changes detected.{{end}}
 
 {{if .HasChanges}}
 <details open>
@@ -22,4 +22,3 @@
 {{else}}
 ✅ No changes detected.
 {{end}}
-

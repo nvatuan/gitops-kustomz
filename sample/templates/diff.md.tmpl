@@ -5,8 +5,7 @@
 ### [`{{.Environment}}`]
 
 {{if .HasChanges}}
-* **Lines changed:** {{.LineCount}}
-
+### [`{{.Environment}}`]: {{if .HasChanges}}`{{.LineCount}}` lines ({{.AddedLineCount}}➕/{{.DeletedLineCount}}➖){{else}}No changes detected.{{end}}
 <details open>
 <summary>Click to expand {{.Environment}} diff</summary>
 

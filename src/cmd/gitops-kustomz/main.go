@@ -353,11 +353,25 @@ func processEnvironment(
 	}
 
 	hasChanges, _ := differ.HasChanges(baseManifest, headManifest)
+
+	// Count only actual changed lines (lines starting with + or -)
+	addedLines, deletedLines := 0, 0
+	for _, line := range strings.Split(diffContent, "\n") {
+		if strings.HasPrefix(line, "+ ") {
+			addedLines++
+		}
+		if strings.HasPrefix(line, "- ") {
+			deletedLines++
+		}
+	}
+
 	envDiffData := config.EnvironmentDiff{
-		Environment: environment,
-		HasChanges:  hasChanges,
-		Content:     diffContent,
-		LineCount:   strings.Count(diffContent, "\n"),
+		Environment:      environment,
+		HasChanges:       hasChanges,
+		Content:          diffContent,
+		LineCount:        addedLines + deletedLines,
+		AddedLineCount:   addedLines,
+		DeletedLineCount: deletedLines,
 	}
 
 	fmt.Printf("   %d lines changed\n", envDiffData.LineCount)

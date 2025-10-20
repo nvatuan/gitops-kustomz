@@ -86,10 +86,12 @@ type MultiEnvCommentData struct {
 
 // EnvironmentDiff represents diff data for a specific environment
 type EnvironmentDiff struct {
-	Environment string
-	HasChanges  bool
-	Content     string
-	LineCount   int
+	Environment      string
+	HasChanges       bool
+	Content          string
+	LineCount        int
+	AddedLineCount   int
+	DeletedLineCount int
 }
 
 // MultiEnvPolicyReport represents policy results across multiple environments
