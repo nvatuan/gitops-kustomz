@@ -77,14 +77,12 @@ func (e *Evaluator) LoadAndValidate(configPath, policiesPath string) (*config.Co
 		var testPath string
 		if strings.HasSuffix(policyPath, ".rego") {
 			testPath = strings.TrimSuffix(policyPath, ".rego") + "_test.rego"
-		} else if strings.HasSuffix(policyPath, ".opa") {
-			testPath = strings.TrimSuffix(policyPath, ".opa") + "_test.opa"
 		} else {
-			return nil, fmt.Errorf("policy %s: unsupported file extension (must be .rego or .opa)", id)
+			return nil, fmt.Errorf("policy %s: unsupported file extension (must be .rego)", id)
 		}
 
 		if _, err := os.Stat(testPath); os.IsNotExist(err) {
-			return nil, fmt.Errorf("policy %s: test file not found: %s", id, testPath)
+			return nil, fmt.Errorf("each policy must have test file, policy %s: test file not found: %s", id, testPath)
 		}
 	}
 

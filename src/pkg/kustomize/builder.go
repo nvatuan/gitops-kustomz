@@ -6,13 +6,15 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"time"
 )
 
 const (
-	KUSTOMIZE_BASE_DIR  = "base"
-	KUSTOMIZE_ENV_DIR   = "environments"
-	KUSTOMIZE_FILE_NAME = "kustomization.yaml"
+	KUSTOMIZE_BASE_DIR = "base"
+	KUSTOMIZE_ENV_DIR  = "environments"
+)
+
+var (
+	KUSTOMIZE_FILE_NAMES = []string{"kustomization.yaml", "kustomization.yml"}
 )
 
 // KustomizeBuilder defines the interface for building Kubernetes manifests
@@ -38,15 +40,8 @@ func NewBuilder() *Builder {
 
 // Build runs kustomize build on the specified path
 func (b *Builder) Build(ctx context.Context, path string) ([]byte, error) {
-	start := time.Now()
-
 	cmd := exec.CommandContext(ctx, "kustomize", "build", path)
 	output, err := cmd.CombinedOutput()
-
-	duration := time.Since(start)
-	if duration > 2*time.Second {
-		fmt.Fprintf(os.Stderr, "Warning: kustomize build took %v (>2s target)\n", duration)
-	}
 
 	if err != nil {
 		return nil, fmt.Errorf("kustomize build failed: %w\nOutput: %s", err, string(output))
@@ -69,9 +64,11 @@ func (b *Builder) ValidateServiceEnvironment(manifestsPath, service, environment
 		return fmt.Errorf("base directory not found for service '%s'", service)
 	}
 
-	baseKustomization := filepath.Join(basePath, KUSTOMIZE_FILE_NAME)
-	if _, err := os.Stat(baseKustomization); os.IsNotExist(err) {
-		return fmt.Errorf("kustomization.yaml not found in base directory for service '%s'", service)
+	for _, kustomizeFileName := range KUSTOMIZE_FILE_NAMES {
+		baseKustomization := filepath.Join(basePath, kustomizeFileName)
+		if _, err := os.Stat(baseKustomization); os.IsNotExist(err) {
+			return fmt.Errorf("%s not found in base directory for service '%s'", kustomizeFileName, service)
+		}
 	}
 
 	// Check if environment exists
@@ -80,9 +77,11 @@ func (b *Builder) ValidateServiceEnvironment(manifestsPath, service, environment
 		return fmt.Errorf("environment '%s' not found for service '%s' (service may not be deployed to this environment)", environment, service)
 	}
 
-	envKustomization := filepath.Join(envPath, KUSTOMIZE_FILE_NAME)
-	if _, err := os.Stat(envKustomization); os.IsNotExist(err) {
-		return fmt.Errorf("kustomization.yaml not found in environment '%s' for service '%s'", environment, service)
+	for _, kustomizeFileName := range KUSTOMIZE_FILE_NAMES {
+		envKustomization := filepath.Join(envPath, kustomizeFileName)
+		if _, err := os.Stat(envKustomization); os.IsNotExist(err) {
+			return fmt.Errorf("%s not found in environment '%s' for service '%s'", kustomizeFileName, environment, service)
+		}
 	}
 
 	return nil
