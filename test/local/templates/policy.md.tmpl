@@ -1,16 +1,17 @@
-## 🛡️ Policy Evaluation Results
+## 🛡️ Policy Evaluation
 
-### Summary
+| Environments | Success | Failed | Errored |
+|--------------|---------|--------|---------|
+{{range $env, $sum := .MultiEnvPolicyReport.Summary}}| `{{ $env }}` | {{ $sum.PassedPolicies }} | {{ $sum.FailedPolicies }} | {{ $sum.ErroredPolicies }} |
+{{ end }}
 
-{{range $env, $sum := .MultiEnvPolicyReport.Summary}}
-**{{$env}}:** {{$sum.PassedPolicies}}/{{$sum.TotalPolicies}} passed{{if gt $sum.FailedPolicies 0}} | ❌ {{$sum.FailedPolicies}} failed{{end}}{{if gt $sum.ErroredPolicies 0}} | 💥 {{$sum.ErroredPolicies}} errored{{end}}  
-{{end}}
+<details> <summary> Policy Matrix </summary>
 
-### Policy Matrix
-
-| Policy | Enforcement |{{range .MultiEnvPolicyReport.Environments}} {{.}} |{{end}}
+| Policy | Enforcement |{{range .MultiEnvPolicyReport.Environments}} `{{.}}` |{{end}}
 |--------|-------------|{{range .MultiEnvPolicyReport.Environments}}--------|{{end}}
-{{range $policy := .MultiEnvPolicyReport.Policies}}| {{$policy.Name}} | {{$policy.Level}} |{{range $env := $.MultiEnvPolicyReport.Environments}}{{$result := index $policy.Results $env}} {{if $result}}{{$result.Status}}{{else}}N/A{{end}} |{{end}}
+{{range $policy := .MultiEnvPolicyReport.Policies}}| {{$policy.Name}} | `{{$policy.Level}}` | 
+{{- range $env := $.MultiEnvPolicyReport.Environments}}{{$result := index $policy.Results $env}} {{if $result}}
+{{- if eq $result.Status "PASS"}}✅{{else if eq $result.Status "FAIL"}}⚠️{{else}}{{$result.Status}}{{end}}{{else}}N/A{{end}} |{{end}}
 {{end}}
 
 {{range $env, $sum := .MultiEnvPolicyReport.Summary}}
@@ -30,3 +31,4 @@
 {{end}}
 {{end}}
 
+</details>

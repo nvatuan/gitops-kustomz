@@ -3,7 +3,7 @@ policies:
     name: Service High Availability
     description: Ensures deployments meeting high availability criteria
     type: opa
-    filePath: ha.opa
+    filePath: ha.rego
 
     enforcement:
       inEffectAfter: 2025-10-11T00:00:00Z
@@ -17,7 +17,7 @@ policies:
     name: Service Taggings
     description: Ensures deployments meeting tagging criteria
     type: opa
-    filePath: taggings.opa
+    filePath: taggings.rego
 
     enforcement:
       inEffectAfter: 2025-10-11T00:00:00Z
