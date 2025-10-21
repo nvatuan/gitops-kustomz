@@ -82,7 +82,7 @@ func (e *Evaluator) LoadAndValidate(configPath, policiesPath string) (*config.Co
 		}
 
 		if _, err := os.Stat(testPath); os.IsNotExist(err) {
-			return nil, fmt.Errorf("each policy must have test file, policy %s: test file not found: %s", id, testPath)
+			return nil, fmt.Errorf("each policy must have testpolicy %s: test file not found: %s", id, testPath)
 		}
 	}
 

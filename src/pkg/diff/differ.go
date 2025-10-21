@@ -139,11 +139,6 @@ func (d *Differ) simpleDiff(base, head []byte) (string, error) {
 	return result.String(), nil
 }
 
-// HasChanges checks if there are any changes between base and head
-func (d *Differ) HasChanges(base, head []byte) (bool, error) {
-	return !bytes.Equal(base, head), nil
-}
-
 // FormatForMarkdown formats the diff for display in markdown
 func (d *Differ) FormatForMarkdown(diff string, maxLines int) string {
 	if diff == "" {
