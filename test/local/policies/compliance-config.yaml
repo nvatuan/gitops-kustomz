@@ -12,12 +12,12 @@ policies:
 
       override:
         comment: "/sp-override-ha"
-  
-  service-ingress-tls:
-    name: Service Ingress TLS
-    description: Ensures deployments meeting ingress TLS criteria
+
+  service-taggings:
+    name: Service Taggings
+    description: Ensures deployments meeting tagging criteria
     type: opa
-    filePath: ingress-tls.opa
+    filePath: taggings.opa
 
     enforcement:
       inEffectAfter: 2025-10-11T00:00:00Z
@@ -25,4 +25,4 @@ policies:
       isBlockingAfter: 2026-02-14T00:00:00Z
 
       override:
-        comment: "/sp-override-tls"
+        comment: "/sp-override-taggings"
