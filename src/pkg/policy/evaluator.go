@@ -10,67 +10,82 @@ import (
 	"strings"
 	"time"
 
-	"github.com/gh-nvat/gitops-kustomz/src/pkg/config"
+	"github.com/gh-nvat/gitops-kustomz/src/pkg/models"
+	"gopkg.in/yaml.v2"
 )
 
 const (
-	POLICY_STATUS_PASS  = "PASS"
-	POLICY_STATUS_FAIL  = "FAIL"
-	POLICY_STATUS_ERROR = "ERROR"
-
-	POLICY_LEVEL_DISABLED  = "DISABLED"
-	POLICY_LEVEL_RECOMMEND = "RECOMMEND"
-	POLICY_LEVEL_WARNING   = "WARNING"
-	POLICY_LEVEL_BLOCK     = "BLOCK"
+	COMPLIANCE_CONFIG_FILENAME = "compliance-config.yaml"
 )
 
-// PolicyEvaluator defines the interface for policy evaluation operations
-type PolicyEvaluator interface {
-	// LoadAndValidate loads and validates the compliance configuration
-	LoadAndValidate(configPath, policiesPath string) (*config.ComplianceConfig, error)
-	// Evaluate evaluates all policies against the manifest
-	Evaluate(ctx context.Context, manifest []byte, cfg *config.ComplianceConfig, policiesPath string) (*config.EvaluationResult, error)
-	// CheckOverrides checks for policy override comments in PR comments
-	CheckOverrides(comments []*config.Comment, cfg *config.ComplianceConfig) map[string]bool
-	// Enforce determines if the evaluation result should block the PR
-	Enforce(result *config.EvaluationResult, overrides map[string]bool) *config.EnforcementResult
-	// ApplyOverrides applies policy overrides to the evaluation result
-	ApplyOverrides(result *config.EvaluationResult, overrides map[string]bool)
+// // PolicyEvaluator defines the interface for policy evaluation operations
+// type PolicyEvaluator interface {
+// 	// LoadAndValidate loads and validates the compliance configuration
+// 	LoadAndValidate(configPath, policiesPath string) (*models.ComplianceConfig, error)
+// 	// Evaluate evaluates all policies against the manifest
+// 	Evaluate(ctx context.Context, manifest []byte, cfg *models.ComplianceConfig, policiesPath string) (*models.EvaluationResult, error)
+// 	// CheckOverrides checks for policy override comments in PR comments
+// 	CheckOverrides(comments []*models.Comment, cfg *models.ComplianceConfig) map[string]bool
+// 	// Enforce determines if the evaluation result should block the PR
+// 	Enforce(result *models.EvaluationResult, overrides map[string]bool) *models.EnforcementResult
+// 	// ApplyOverrides applies policy overrides to the evaluation result
+// 	ApplyOverrides(result *models.EvaluationResult, overrides map[string]bool)
+// }
+
+type PolicyEvaluatorInterface interface {
+	LoadAndValidate(policiesPath string) (*models.ComplianceConfig, error)
 }
 
-// Evaluator handles policy evaluation
-type Evaluator struct {
-	loader *config.Loader
+const (
+	POLICY_LEVEL_RECOMMEND     = "RECOMMEND"
+	POLICY_LEVEL_WARNING       = "WARNING"
+	POLICY_LEVEL_BLOCK         = "BLOCK"
+	POLICY_LEVEL_OVERRIDE      = "OVERRIDE"
+	POLICY_LEVEL_NOT_IN_EFFECT = "NOT_IN_EFFECT"
+	POLICY_LEVEL_UNKNOWN       = ""
+)
+
+type EvaluatorData struct {
+	models.ComplianceConfig
+
+	// map policy id to full path to policy file
+	fullPathToPolicy    map[string]string
+	evalFailMsgOfPolicy map[string][]string
+
+	// enforcements levels of policies Ids
+	policyIdToLevel       map[string]string
+	overrideCmdToPolicyId map[string]string
 }
 
-// Ensure Evaluator implements PolicyEvaluator
-var _ PolicyEvaluator = (*Evaluator)(nil)
+type PolicyEvaluator struct {
+	policiesPath string
+	data         EvaluatorData
+}
 
-// NewEvaluator creates a new policy evaluator
-func NewEvaluator() *Evaluator {
-	return &Evaluator{
-		loader: config.NewLoader(),
+func NewPolicyEvaluator(policiesPath string) *PolicyEvaluator {
+	return &PolicyEvaluator{
+		policiesPath: policiesPath,
+		data:         EvaluatorData{},
 	}
 }
 
 // LoadAndValidate loads and validates the compliance configuration
-func (e *Evaluator) LoadAndValidate(configPath, policiesPath string) (*config.ComplianceConfig, error) {
+func (e *PolicyEvaluator) LoadAndValidate() error {
 	// Load configuration
-	cfg, err := e.loader.LoadComplianceConfig(configPath)
-	if err != nil {
-		return nil, err
+	if err := e.loadComplianceConfig(); err != nil {
+		return err
 	}
 
 	// Validate configuration structure
-	if err := e.loader.ValidateComplianceConfig(cfg); err != nil {
-		return nil, err
+	if err := e.validateComplianceConfig(); err != nil {
+		return err
 	}
 
-	// Validate policy files exist
-	for id, policy := range cfg.Policies {
-		policyPath := filepath.Join(policiesPath, policy.FilePath)
+	// Validate policy files exist and check for tests
+	for id, policy := range e.data.ComplianceConfig.Policies {
+		policyPath := filepath.Join(e.policiesPath, policy.FilePath)
 		if _, err := os.Stat(policyPath); os.IsNotExist(err) {
-			return nil, fmt.Errorf("policy %s: file not found: %s", id, policyPath)
+			return fmt.Errorf("policy %s: file not found: %s", id, policyPath)
 		}
 
 		// Check for test file (support both .rego and .opa extensions)
@@ -78,28 +93,92 @@ func (e *Evaluator) LoadAndValidate(configPath, policiesPath string) (*config.Co
 		if strings.HasSuffix(policyPath, ".rego") {
 			testPath = strings.TrimSuffix(policyPath, ".rego") + "_test.rego"
 		} else {
-			return nil, fmt.Errorf("policy %s: unsupported file extension (must be .rego)", id)
+			return fmt.Errorf("policy %s: unsupported file extension (must be .rego)", id)
 		}
 
 		if _, err := os.Stat(testPath); os.IsNotExist(err) {
-			return nil, fmt.Errorf("each policy must have testpolicy %s: test file not found: %s", id, testPath)
+			return fmt.Errorf("each policy must have testpolicy %s: test file not found: %s", id, testPath)
+		}
+
+		// Set full path to policy file
+		e.data.fullPathToPolicy[id] = policyPath
+
+		// check override cmd
+		if policy.Enforcement.Override.Comment == "" {
+			continue
+		}
+		if _, ok := e.data.overrideCmdToPolicyId[policy.Enforcement.Override.Comment]; ok {
+			return fmt.Errorf("policy %s: use another command, this override command already exists: %s", id, policy.Enforcement.Override.Comment)
+		}
+		e.data.overrideCmdToPolicyId[policy.Enforcement.Override.Comment] = id
+	}
+	return nil
+}
+
+// LoadComplianceConfig loads the compliance configuration from a YAML file
+func (e *PolicyEvaluator) loadComplianceConfig() error {
+	configPath := filepath.Join(e.policiesPath, COMPLIANCE_CONFIG_FILENAME)
+	data, err := os.ReadFile(configPath)
+	if err != nil {
+		return fmt.Errorf("failed to read compliance config: %w", err)
+	}
+
+	if err := yaml.Unmarshal(data, &e.data.ComplianceConfig); err != nil {
+		return fmt.Errorf("failed to parse compliance config: %w", err)
+	}
+	return nil
+}
+
+// ValidateComplianceConfig validates the common fields
+func (e *PolicyEvaluator) validateComplianceConfig() error {
+	if len(e.data.ComplianceConfig.Policies) == 0 {
+		return fmt.Errorf("no policies defined in compliance config")
+	}
+
+	for id, policy := range e.data.ComplianceConfig.Policies {
+		if policy.Name == "" {
+			return fmt.Errorf("policy %s: name is required", id)
+		}
+		if policy.Type == "" {
+			return fmt.Errorf("policy %s: type is required", id)
+		}
+		if policy.Type != "opa" {
+			return fmt.Errorf("policy %s: unsupported type %s (only 'opa' is supported)", id, policy.Type)
+		}
+		if policy.FilePath == "" {
+			return fmt.Errorf("policy %s: filePath is required", id)
+		}
+
+		// Validate enforcement dates are in order if set
+		if policy.Enforcement.InEffectAfter != nil && policy.Enforcement.IsWarningAfter != nil {
+			if policy.Enforcement.IsWarningAfter.Before(*policy.Enforcement.InEffectAfter) {
+				return fmt.Errorf("policy %s: isWarningAfter cannot be before inEffectAfter", id)
+			}
+		}
+		if policy.Enforcement.IsWarningAfter != nil && policy.Enforcement.IsBlockingAfter != nil {
+			if policy.Enforcement.IsBlockingAfter.Before(*policy.Enforcement.IsWarningAfter) {
+				return fmt.Errorf("policy %s: isBlockingAfter cannot be before isWarningAfter", id)
+			}
+		}
+
+		// override comment not too long
+		if policy.Enforcement.Override.Comment != "" && len(policy.Enforcement.Override.Comment) > 255 {
+			return fmt.Errorf("policy %s: override comment is too long (max 255 characters)", id)
 		}
 	}
 
-	return cfg, nil
+	return nil
 }
 
-// Evaluate evaluates all policies against the manifest using conftest
-func (e *Evaluator) Evaluate(ctx context.Context, manifest []byte, cfg *config.ComplianceConfig, policiesPath string) (*config.EvaluationResult, error) {
-	result := &config.EvaluationResult{
-		TotalPolicies: len(cfg.Policies),
-		PolicyResults: make([]config.PolicyResult, 0, len(cfg.Policies)),
-	}
-
+// Evaluate evaluates all policies against the manifest using conftest and store the evaluation results in the EvaluatorData
+func (e *PolicyEvaluator) Evaluate(
+	ctx context.Context,
+	manifest []byte,
+) error {
 	// Write manifest to temporary file for conftest
 	tmpFile, err := os.CreateTemp("", "manifest-*.yaml")
 	if err != nil {
-		return nil, fmt.Errorf("failed to create temp file: %w", err)
+		return fmt.Errorf("failed to create temp file: %w", err)
 	}
 	defer func() {
 		if err := os.Remove(tmpFile.Name()); err != nil {
@@ -115,209 +194,128 @@ func (e *Evaluator) Evaluate(ctx context.Context, manifest []byte, cfg *config.C
 	}()
 
 	if _, err := tmpFile.Write(manifest); err != nil {
-		return nil, fmt.Errorf("failed to write manifest to temp file: %w", err)
+		return fmt.Errorf("failed to write manifest to temp file: %w", err)
 	}
 	if err := tmpFile.Close(); err != nil {
-		return nil, fmt.Errorf("failed to close temp file: %w", err)
+		return fmt.Errorf("failed to close temp file: %w", err)
 	}
 
 	// Evaluate each policy using conftest
-	for id, policy := range cfg.Policies {
-		policyResult := e.evaluatePolicyWithConftest(ctx, id, policy, tmpFile.Name(), policiesPath)
-		result.PolicyResults = append(result.PolicyResults, policyResult)
-
-		switch policyResult.Status {
-		case POLICY_STATUS_PASS:
-			result.PassedPolicies++
-		case POLICY_STATUS_FAIL:
-			result.FailedPolicies++
-		case POLICY_STATUS_ERROR:
-			result.ErroredPolicies++
+	for id, _ := range e.data.ComplianceConfig.Policies {
+		failMsgs, err := e.evaluatePolicyWithConftest(
+			ctx, id, e.data.fullPathToPolicy[id], tmpFile.Name(),
+		)
+		if err != nil {
+			return fmt.Errorf("failed to evaluate policy %s: %w", id, err)
 		}
+		e.data.evalFailMsgOfPolicy[id] = failMsgs
 	}
 
-	return result, nil
+	return nil
 }
 
 // evaluatePolicyWithConftest evaluates a single policy using conftest
-func (e *Evaluator) evaluatePolicyWithConftest(ctx context.Context, id string, policy config.PolicyConfig, manifestPath, policiesPath string) config.PolicyResult {
-	result := config.PolicyResult{
-		PolicyID:   id,
-		PolicyName: policy.Name,
-		Status:     POLICY_STATUS_PASS,
-		Violations: []config.Violation{},
-	}
-
-	// Determine enforcement level
-	result.Level = e.determineEnforcementLevel(policy.Enforcement)
-
-	// If policy is not in effect, skip it
-	if result.Level == "DISABLED" {
-		return result
-	}
-
-	// Use opa to evaluate the policy
-	violations, err := e.evaluateResourceWithOPA(ctx, manifestPath, policiesPath)
+// returns: failureMsgs, evalError
+func (e *PolicyEvaluator) evaluatePolicyWithConftest(
+	ctx context.Context,
+	id string,
+	singlePolicyPath string, manifestPath string,
+) ([]string, error) {
+	cmd := exec.CommandContext(ctx,
+		"conftest", "test", "--all-namespaces", "--combine",
+		"--policy", singlePolicyPath,
+		manifestPath,
+		"-o", "json",
+	)
+	outputBytes, err := cmd.CombinedOutput()
 	if err != nil {
-		result.Status = POLICY_STATUS_ERROR
-		result.Error = fmt.Sprintf("Policy evaluation failed: %v", err)
-		return result
+		return nil, fmt.Errorf("conftest command failed: %w\nOutput: %s", err, string(outputBytes))
 	}
 
-	// Add violations
-	for _, v := range violations {
-		result.Violations = append(result.Violations, config.Violation{
-			Message:  v,
-			Resource: "manifest", // conftest doesn't provide individual resource names in this context
-		})
-	}
-
-	// Set status based on violations
-	if len(result.Violations) > 0 {
-		result.Status = POLICY_STATUS_FAIL
-	}
-
-	return result
-}
-
-// evaluateResourceWithOPA evaluates manifest using OPA binary directly
-func (e *Evaluator) evaluateResourceWithOPA(ctx context.Context, manifestPath, policiesPath string) ([]string, error) {
-	// Use opa eval command directly with YAML input
-	cmd := exec.CommandContext(ctx, "opa", "eval",
-		"--data", policiesPath,
-		"--input", manifestPath,
-		"--format", "json",
-		"data.kustomization.deny")
-
-	output, err := cmd.CombinedOutput()
-	if err != nil {
-		return nil, fmt.Errorf("opa command failed: %w\nOutput: %s", err, string(output))
-	}
-
-	// Parse OPA output
-	violations, err := e.parseOPAOutput(output)
-	if err != nil {
-		return nil, fmt.Errorf("failed to parse OPA output: %w", err)
-	}
-
-	return violations, nil
-}
-
-// parseOPAOutput parses OPA JSON output to extract violations
-func (e *Evaluator) parseOPAOutput(output []byte) ([]string, error) {
-	var result struct {
-		Result []interface{} `json:"result"`
-	}
-
-	if err := json.Unmarshal(output, &result); err != nil {
-		return nil, fmt.Errorf("failed to parse OPA output: %w", err)
-	}
-
-	var violations []string
-	if len(result.Result) > 0 {
-		if denySet, ok := result.Result[0].([]interface{}); ok {
-			for _, v := range denySet {
-				if msg, ok := v.(string); ok {
-					violations = append(violations, msg)
-				}
+	// Sample conftest output
+	// 	[
+	//   {
+	//     "filename": "Combined",
+	//     "namespace": "main",
+	//     "successes": 2,
+	//     "failures": [
+	//       {
+	//         "msg": "Deployment 'prod-my-app' must have at least 2 replicas for high availability, found: 1",
+	//         "metadata": {
+	//           "query": "data.main.deny"
+	//         }
+	//       }
+	//     ]
+	//   }
+	// ]
+	outputJson := []struct {
+		Filename  string `json:"filename"`
+		Namespace string `json:"namespace"`
+		Successes int    `json:"successes"`
+		Failures  []struct {
+			Msg      string `json:"msg"`
+			Metadata struct {
+				Query string `json:"query"`
 			}
 		}
+	}{}
+	if err := json.Unmarshal(outputBytes, &outputJson); err != nil {
+		return nil, fmt.Errorf("failed to parse conftest output: %w", err)
 	}
 
-	return violations, nil
+	if len(outputJson) == 0 {
+		return nil, fmt.Errorf("no results found in conftest output: %s", string(outputBytes))
+	}
+	// Success case: [
+	// 	 {
+	// 			"filename": "Combined",
+	// 			"namespace": "main",
+	// 			"successes": 3
+	//	 }
+	// ]
+	if len(outputJson[0].Failures) == 0 {
+		return []string{}, nil
+	}
+
+	failureMsgs := []string{}
+	for _, failure := range outputJson[0].Failures {
+		failureMsgs = append(failureMsgs, failure.Msg)
+	}
+	return failureMsgs, nil
 }
 
-// determineEnforcementLevel determines the current enforcement level based on time
-func (e *Evaluator) determineEnforcementLevel(enforcement config.EnforcementConfig) string {
+// DetermineEnforcementLevel determines the current enforcement level based on time and overrides
+// Set the results to internal struct data
+func (e *PolicyEvaluator) DetermineEnforcementLevel(
+	comments []string,
+) error {
 	now := time.Now()
 
-	// Check if policy is in effect
-	if enforcement.InEffectAfter != nil && now.Before(*enforcement.InEffectAfter) {
-		return POLICY_LEVEL_DISABLED
-	}
-
-	// Check blocking level
-	if enforcement.IsBlockingAfter != nil && !now.Before(*enforcement.IsBlockingAfter) {
-		return POLICY_LEVEL_BLOCK
-	}
-
-	// Check warning level
-	if enforcement.IsWarningAfter != nil && !now.Before(*enforcement.IsWarningAfter) {
-		return POLICY_LEVEL_WARNING
-	}
-
-	// Default to recommend if in effect
-	if enforcement.InEffectAfter != nil {
-		return POLICY_LEVEL_RECOMMEND
-	}
-
-	return POLICY_LEVEL_DISABLED
-}
-
-// CheckOverrides checks PR comments for policy override commands
-func (e *Evaluator) CheckOverrides(comments []*config.Comment, cfg *config.ComplianceConfig) map[string]bool {
-	overrides := make(map[string]bool)
-
-	for policyID, policy := range cfg.Policies {
-		if policy.Enforcement.Override.Comment == "" {
-			continue
-		}
-
-		// Check if override comment exists
-		for _, comment := range comments {
-			if strings.Contains(comment.Body, policy.Enforcement.Override.Comment) {
-				overrides[policyID] = true
-				break
-			}
+	for _, comment := range comments {
+		if _, ok := e.data.overrideCmdToPolicyId[comment]; ok {
+			e.data.policyIdToLevel[e.data.overrideCmdToPolicyId[comment]] = POLICY_LEVEL_OVERRIDE
 		}
 	}
 
-	return overrides
-}
+	for policyId, policy := range e.data.ComplianceConfig.Policies {
+		enforcementLevel := POLICY_LEVEL_UNKNOWN
+		enforcement := policy.Enforcement
 
-// Enforce determines the enforcement action based on results and overrides
-func (e *Evaluator) Enforce(result *config.EvaluationResult, overrides map[string]bool) *config.EnforcementResult {
-	enforcement := &config.EnforcementResult{}
-
-	blockingCount := 0
-	warningCount := 0
-
-	for _, pr := range result.PolicyResults {
-		if pr.Status != POLICY_STATUS_FAIL {
-			continue
+		if enforcement.InEffectAfter != nil && now.Before(*enforcement.InEffectAfter) {
+			enforcementLevel = POLICY_LEVEL_NOT_IN_EFFECT
+		}
+		if enforcement.IsWarningAfter != nil && now.Before(*enforcement.IsWarningAfter) {
+			enforcementLevel = POLICY_LEVEL_RECOMMEND
+		}
+		if enforcement.IsBlockingAfter != nil && now.Before(*enforcement.IsBlockingAfter) {
+			enforcementLevel = POLICY_LEVEL_WARNING
+		}
+		if enforcement.IsBlockingAfter != nil && !now.Before(*enforcement.IsBlockingAfter) {
+			enforcementLevel = POLICY_LEVEL_BLOCK
 		}
 
-		// Check if overridden
-		if overrides[pr.PolicyID] {
-			continue
-		}
-
-		switch pr.Level {
-		case POLICY_LEVEL_BLOCK:
-			blockingCount++
-			enforcement.ShouldBlock = true
-		case POLICY_LEVEL_WARNING:
-			warningCount++
-			enforcement.ShouldWarn = true
-		}
+		e.data.policyIdToLevel[policyId] = enforcementLevel
 	}
 
-	if blockingCount > 0 {
-		enforcement.Summary = fmt.Sprintf("%d blocking policy failure(s)", blockingCount)
-	} else if warningCount > 0 {
-		enforcement.Summary = fmt.Sprintf("%d warning policy failure(s)", warningCount)
-	} else {
-		enforcement.Summary = "All checks passed"
-	}
-
-	return enforcement
-}
-
-// ApplyOverrides applies overrides to policy results
-func (e *Evaluator) ApplyOverrides(result *config.EvaluationResult, overrides map[string]bool) {
-	for i := range result.PolicyResults {
-		if overrides[result.PolicyResults[i].PolicyID] {
-			result.PolicyResults[i].Overridden = true
-		}
-	}
+	return nil
 }

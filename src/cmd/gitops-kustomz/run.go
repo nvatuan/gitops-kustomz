@@ -26,7 +26,7 @@ func initialize(ctx context.Context, opts *runner.Options) (*runner.Runner, erro
 	baseRunner := &runner.BaseRunner{
 		Builder:   kustomize.NewBuilder(),
 		Differ:    diff.NewDiffer(),
-		Evaluator: policy.NewEvaluator(),
+		Evaluator: policy.NewPolicyEvaluator(opts.PoliciesPath),
 		Reporter:  policy.NewReporter(),
 		Renderer:  template.NewRenderer(),
 	}

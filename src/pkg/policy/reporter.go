@@ -1,9 +1,5 @@
 package policy
 
-import (
-	"github.com/gh-nvat/gitops-kustomz/src/pkg/config"
-)
-
 // Reporter generates policy evaluation reports
 type Reporter struct{}
 
