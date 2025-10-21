@@ -58,8 +58,8 @@ run-local: build
 		--environments stg,prod \
 		--lc-before-manifests-path test/local/before/services \
 		--lc-after-manifests-path test/local/after/services \
-		--policies-path sample/policies \
-		--templates-path src/templates \
+		--policies-path test/local/policies \
+		--templates-path test/local/templates \
 		--lc-output-dir test/output
 	@echo ""
 	@echo "📄 Reports generated:"

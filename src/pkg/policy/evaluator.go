@@ -2,15 +2,15 @@ package policy
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"time"
 
 	"github.com/gh-nvat/gitops-kustomz/src/pkg/config"
-	"github.com/open-policy-agent/opa/rego"
-	yaml "gopkg.in/yaml.v3"
 )
 
 const (
@@ -91,22 +91,41 @@ func (e *Evaluator) LoadAndValidate(configPath, policiesPath string) (*config.Co
 	return cfg, nil
 }
 
-// Evaluate evaluates all policies against the manifest
+// Evaluate evaluates all policies against the manifest using conftest
 func (e *Evaluator) Evaluate(ctx context.Context, manifest []byte, cfg *config.ComplianceConfig, policiesPath string) (*config.EvaluationResult, error) {
 	result := &config.EvaluationResult{
 		TotalPolicies: len(cfg.Policies),
 		PolicyResults: make([]config.PolicyResult, 0, len(cfg.Policies)),
 	}
 
-	// Parse manifest into individual resources
-	resources, err := e.parseManifest(manifest)
+	// Write manifest to temporary file for conftest
+	tmpFile, err := os.CreateTemp("", "manifest-*.yaml")
 	if err != nil {
-		return nil, fmt.Errorf("failed to parse manifest: %w", err)
+		return nil, fmt.Errorf("failed to create temp file: %w", err)
+	}
+	defer func() {
+		if err := os.Remove(tmpFile.Name()); err != nil {
+			// Log error but don't fail the operation
+			fmt.Printf("Warning: failed to remove temp file %s: %v\n", tmpFile.Name(), err)
+		}
+	}()
+	defer func() {
+		if err := tmpFile.Close(); err != nil {
+			// Log error but don't fail the operation
+			fmt.Printf("Warning: failed to close temp file: %v\n", err)
+		}
+	}()
+
+	if _, err := tmpFile.Write(manifest); err != nil {
+		return nil, fmt.Errorf("failed to write manifest to temp file: %w", err)
+	}
+	if err := tmpFile.Close(); err != nil {
+		return nil, fmt.Errorf("failed to close temp file: %w", err)
 	}
 
-	// Evaluate each policy
+	// Evaluate each policy using conftest
 	for id, policy := range cfg.Policies {
-		policyResult := e.evaluatePolicy(ctx, id, policy, resources, policiesPath)
+		policyResult := e.evaluatePolicyWithConftest(ctx, id, policy, tmpFile.Name(), policiesPath)
 		result.PolicyResults = append(result.PolicyResults, policyResult)
 
 		switch policyResult.Status {
@@ -122,8 +141,8 @@ func (e *Evaluator) Evaluate(ctx context.Context, manifest []byte, cfg *config.C
 	return result, nil
 }
 
-// evaluatePolicy evaluates a single policy against all resources
-func (e *Evaluator) evaluatePolicy(ctx context.Context, id string, policy config.PolicyConfig, resources []map[string]interface{}, policiesPath string) config.PolicyResult {
+// evaluatePolicyWithConftest evaluates a single policy using conftest
+func (e *Evaluator) evaluatePolicyWithConftest(ctx context.Context, id string, policy config.PolicyConfig, manifestPath, policiesPath string) config.PolicyResult {
 	result := config.PolicyResult{
 		PolicyID:   id,
 		PolicyName: policy.Name,
@@ -139,31 +158,20 @@ func (e *Evaluator) evaluatePolicy(ctx context.Context, id string, policy config
 		return result
 	}
 
-	// Load OPA policy
-	policyPath := filepath.Join(policiesPath, policy.FilePath)
-	policyContent, err := os.ReadFile(policyPath)
+	// Use opa to evaluate the policy
+	violations, err := e.evaluateResourceWithOPA(ctx, manifestPath, policiesPath)
 	if err != nil {
 		result.Status = POLICY_STATUS_ERROR
-		result.Error = fmt.Sprintf("Failed to read policy file: %v", err)
+		result.Error = fmt.Sprintf("Policy evaluation failed: %v", err)
 		return result
 	}
 
-	// Evaluate policy for each resource
-	for _, resource := range resources {
-		violations, err := e.evaluateResourceWithOPA(ctx, policyContent, resource)
-		if err != nil {
-			result.Status = POLICY_STATUS_ERROR
-			result.Error = fmt.Sprintf("Policy evaluation failed: %v", err)
-			return result
-		}
-
-		// Add violations
-		for _, v := range violations {
-			result.Violations = append(result.Violations, config.Violation{
-				Message:  v,
-				Resource: fmt.Sprintf("%s/%s", resource["kind"], resource["metadata"].(map[string]interface{})["name"]),
-			})
-		}
+	// Add violations
+	for _, v := range violations {
+		result.Violations = append(result.Violations, config.Violation{
+			Message:  v,
+			Resource: "manifest", // conftest doesn't provide individual resource names in this context
+		})
 	}
 
 	// Set status based on violations
@@ -174,47 +182,42 @@ func (e *Evaluator) evaluatePolicy(ctx context.Context, id string, policy config
 	return result
 }
 
-// evaluateResourceWithOPA evaluates a single resource using OPA
-func (e *Evaluator) evaluateResourceWithOPA(ctx context.Context, policyContent []byte, resource map[string]interface{}) ([]string, error) {
-	// Prepare input for OPA
-	input := map[string]interface{}{
-		"request": map[string]interface{}{
-			"kind": map[string]interface{}{
-				"kind":    resource["kind"],
-				"version": resource["apiVersion"],
-			},
-			"object": resource,
-			"namespace": func() string {
-				if metadata, ok := resource["metadata"].(map[string]interface{}); ok {
-					if ns, ok := metadata["namespace"].(string); ok {
-						return ns
-					}
-				}
-				return "default"
-			}(),
-		},
-	}
+// evaluateResourceWithOPA evaluates manifest using OPA binary directly
+func (e *Evaluator) evaluateResourceWithOPA(ctx context.Context, manifestPath, policiesPath string) ([]string, error) {
+	// Use opa eval command directly with YAML input
+	cmd := exec.CommandContext(ctx, "opa", "eval",
+		"--data", policiesPath,
+		"--input", manifestPath,
+		"--format", "json",
+		"data.kustomization.deny")
 
-	// Create Rego query
-	query, err := rego.New(
-		rego.Query("data.kustomization.deny"),
-		rego.Module("policy.rego", string(policyContent)),
-	).PrepareForEval(ctx)
-
+	output, err := cmd.CombinedOutput()
 	if err != nil {
-		return nil, fmt.Errorf("failed to prepare OPA query: %w", err)
+		return nil, fmt.Errorf("opa command failed: %w\nOutput: %s", err, string(output))
 	}
 
-	// Evaluate
-	results, err := query.Eval(ctx, rego.EvalInput(input))
+	// Parse OPA output
+	violations, err := e.parseOPAOutput(output)
 	if err != nil {
-		return nil, fmt.Errorf("failed to evaluate policy: %w", err)
+		return nil, fmt.Errorf("failed to parse OPA output: %w", err)
 	}
 
-	// Extract violations
+	return violations, nil
+}
+
+// parseOPAOutput parses OPA JSON output to extract violations
+func (e *Evaluator) parseOPAOutput(output []byte) ([]string, error) {
+	var result struct {
+		Result []interface{} `json:"result"`
+	}
+
+	if err := json.Unmarshal(output, &result); err != nil {
+		return nil, fmt.Errorf("failed to parse OPA output: %w", err)
+	}
+
 	var violations []string
-	if len(results) > 0 && len(results[0].Expressions) > 0 {
-		if denySet, ok := results[0].Expressions[0].Value.([]interface{}); ok {
+	if len(result.Result) > 0 {
+		if denySet, ok := result.Result[0].([]interface{}); ok {
 			for _, v := range denySet {
 				if msg, ok := v.(string); ok {
 					violations = append(violations, msg)
@@ -224,33 +227,6 @@ func (e *Evaluator) evaluateResourceWithOPA(ctx context.Context, policyContent [
 	}
 
 	return violations, nil
-}
-
-// parseManifest parses a YAML manifest into individual resources
-func (e *Evaluator) parseManifest(manifest []byte) ([]map[string]interface{}, error) {
-	var resources []map[string]interface{}
-
-	// Split by "---" YAML document separator
-	docs := strings.Split(string(manifest), "\n---\n")
-
-	for _, doc := range docs {
-		doc = strings.TrimSpace(doc)
-		if doc == "" {
-			continue
-		}
-
-		var resource map[string]interface{}
-		if err := yaml.Unmarshal([]byte(doc), &resource); err != nil {
-			continue // Skip invalid documents
-		}
-
-		// Only include resources with kind (skip ConfigMap data, etc.)
-		if _, ok := resource["kind"]; ok {
-			resources = append(resources, resource)
-		}
-	}
-
-	return resources, nil
 }
 
 // determineEnforcementLevel determines the current enforcement level based on time
