@@ -7,7 +7,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/gh-nvat/gitops-kustomz/src/pkg/config"
 	"github.com/gh-nvat/gitops-kustomz/src/pkg/github"
 	"github.com/gh-nvat/gitops-kustomz/src/pkg/models"
 )

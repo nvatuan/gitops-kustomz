@@ -1,6 +1,69 @@
 package models
 
-// report data here
+import "time"
+
+// ReportData represents the complete report data structure
+type ReportData struct {
+	Service      string
+	Timestamp    time.Time
+	BaseCommit   string
+	HeadCommit   string
+	Environments []string
+
+	// Manifest changes per environment
+	ManifestChanges map[string]EnvironmentDiff
+
+	// Policy evaluation results
+	PolicyEvaluation PolicyEvaluation
+}
+
+// EnvironmentDiff represents diff data for a single environment
+type EnvironmentDiff struct {
+	LineCount        int
+	AddedLineCount   int
+	DeletedLineCount int
+	Content          string
+}
+
+// PolicyEvaluationSummary represents the overall policy evaluation results
+type PolicyEvaluation struct {
+	// Summary table: Environment -> Success/Failed/Errored counts
+	EnvironmentSummary map[string]PolicyCounts
+
+	// Detailed policy matrix
+	PolicyMatrix map[string]PolicyMatrix
+}
+
+// PolicyCounts represents the count of policies by status for an environment
+type PolicyCounts struct {
+	Success int
+	Failed  int
+	Errored int
+}
+
+// PolicyMatrix represents the detailed policy evaluation matrix
+type PolicyMatrix struct {
+	// Policies grouped by enforcement level
+	BlockingPolicies    []PolicyResult
+	WarningPolicies     []PolicyResult
+	RecommendPolicies   []PolicyResult
+	OverriddenPolicies  []PolicyResult
+	NotInEffectPolicies []PolicyResult
+}
+
+// PolicyResult represents the result of a single policy evaluation
+type PolicyResult struct {
+	PolicyName   string
+	Enforcement  string // "BLOCKING", "WARNING", "RECOMMEND"
+	Status       string // "Overridden", "Not In Effect", etc.
+	FailMessages []string
+}
+
+// ReportTemplateData represents the data structure for template rendering
+type ReportTemplateData struct {
+	ReportData
+	RenderedMarkdown string
+}
 
 /* sample of desired report
 
@@ -9,7 +72,7 @@ package models
 # 🔍 GitOps Policy Check: my-app
 
 | Timestamp | Base | Head | Environments |
--|-|-|-
+|-|-|-|-
 2025-10-22 00:31:12 UTC | local | local | `stg`, `prod`
 
 ## 📊 Manifest Changes
@@ -30,7 +93,7 @@ package models
 +          value: warn
          image: nginx:1.21
          livenessProbe:
-           httpGet:
+         httpGet:
 @@ -69,8 +69,8 @@
            periodSeconds: 5
          resources:
@@ -75,8 +138,8 @@ package models
 -        image: nginx:1.21
 +        image: nginx:latest
          livenessProbe:
-           failureThreshold: 3
-           httpGet:
+         failureThreshold: 3
+         httpGet:
 @@ -197,7 +197,7 @@
    namespace: my-app-prod
  spec:
@@ -100,10 +163,10 @@ package models
 
 ## 🛡️ Policy Evaluation
 
-| Environments | Success | Failed | Errored |
-|--------------|---------|--------|---------|
-| `prod` | 2 | 0 | 0 |
-| `stg` | 2 | 0 | 0 |
+| Environments | Success | Failed | Not In Effect or Overridden |
+|--------------|---------|--------|------------------------------|
+| `prod` | 3 | 1 | 2 |
+| `stg` | 3 | 1 | 2 |
 
 
 <details open> <summary> Policy Evaluation Matrix </summary>
@@ -112,7 +175,7 @@ package models
 
 | Policy | Env | Fail Message |
 |--------|-------------|--------|
-| Service High Availability | stg: ❌, prod: ❌ | Deployment 'my-app' must have at least 2 replicas |
+| Service High Availability | stg: ❌ | Deployment 'my-app' must have at least 2 replicas |
 
 </details>
 
@@ -120,7 +183,7 @@ package models
 
 | Policy | Env | Fail Message |
 |--------|-------------|--------|
-| Service Taggings | stg: ❌, prod: ❌ | Deployment 'my-app' must have at least 2 replicas |
+| Service Taggings | prod: ❌ | Deployment 'my-app' must have standard taggings |
 
 </details>
 
@@ -130,10 +193,13 @@ package models
 
 | Policy | Status | Env | Fail Message |
 |--------|--------|-----|--------|
-| Service Check 1 | Overriden 		| stg: ❌, prod: ❌ | Deployment 'my-app' must not have cpu limit |
-| Service Check 2 | Not In Effect | stg: ❌, prod: ❌ | Deployment 'my-app' must have memory requests equals to limits |
-| Service Check 3 | Not In Effect | stg: ❌, prod: ❌ | Deployment 'my-app' must define securityContext |
+| Service Check 1 | Overriden 		| stg: ❌ | Deployment 'my-app' must not have cpu limit |
+| Service Check 1 | Overriden 		| prod: ❌ | Deployment 'my-app' must not have cpu limit |
+| Service Check 2 | Not In Effect | stg: ❌ | Deployment 'my-app' must have memory requests equals to limits |
+| Service Check 2 | Not In Effect | prod: ❌ | Deployment 'my-app' must have memory requests equals to limits |
 
 </details>
+
+Other than that, `6` policies were successful.
 
 */
