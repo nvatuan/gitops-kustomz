@@ -1,34 +1,36 @@
 ## 🛡️ Policy Evaluation
 
-| Environments | Success | Failed | Errored |
+| Environments | Success | Failed | Omitted |
 |--------------|---------|--------|---------|
-{{range $env, $sum := .MultiEnvPolicyReport.Summary}}| `{{ $env }}` | {{ $sum.PassedPolicies }} | {{ $sum.FailedPolicies }} | {{ $sum.ErroredPolicies }} |
+{{range $env, $sum := .PolicyEvaluation.EnvironmentSummary}}| `{{ $env }}` | {{ $sum.PolicyCounts.Success }} | {{ $sum.PolicyCounts.Failed }} | {{ $sum.PolicyCounts.Omitted }} |
 {{ end }}
 
 <details> <summary> Policy Matrix </summary>
 
-| Policy | Enforcement |{{range .MultiEnvPolicyReport.Environments}} `{{.}}` |{{end}}
-|--------|-------------|{{range .MultiEnvPolicyReport.Environments}}--------|{{end}}
-{{range $policy := .MultiEnvPolicyReport.Policies}}| {{$policy.Name}} | `{{$policy.Level}}` | 
-{{- range $env := $.MultiEnvPolicyReport.Environments}}{{$result := index $policy.Results $env}} {{if $result}}
-{{- if eq $result.Status "PASS"}}✅{{else if eq $result.Status "FAIL"}}⚠️{{else}}{{$result.Status}}{{end}}{{else}}N/A{{end}} |{{end}}
+{{range $env, $matrix := .PolicyEvaluation.PolicyMatrix}}
+### {{$env}} Environment
+
+{{if $matrix.BlockingPolicies}}
+#### Blocking Policies
+{{range $policy := $matrix.BlockingPolicies}}| {{$policy.PolicyName}} | {{if $policy.IsPassing}}✅ PASS{{else}}❌ FAIL{{end}} |
+{{if not $policy.IsPassing}}{{range $msg := $policy.FailMessages}}  - {{$msg}}{{end}}{{end}}
+{{end}}
 {{end}}
 
-{{range $env, $sum := .MultiEnvPolicyReport.Summary}}
-{{if gt $sum.FailedPolicies 0}}
-### ⚠️ Failed Policies in {{$env}}
+{{if $matrix.WarningPolicies}}
+#### Warning Policies
+{{range $policy := $matrix.WarningPolicies}}| {{$policy.PolicyName}} | {{if $policy.IsPassing}}✅ PASS{{else}}⚠️ FAIL{{end}} |
+{{if not $policy.IsPassing}}{{range $msg := $policy.FailMessages}}  - {{$msg}}{{end}}{{end}}
+{{end}}
+{{end}}
 
-{{range $.MultiEnvPolicyReport.Policies}}
-{{$result := index .Results $env}}
-{{if and $result (ne $result.Status "PASS")}}
-#### {{.Name}}
-- **Enforcement:** {{.Level}}
-{{if $result.Violations}}- **Violations:**{{range $result.Violations}}
-  - {{.}}{{end}}{{end}}
-{{if $result.Error}}- **Error:** {{$result.Error}}{{end}}
+{{if $matrix.RecommendPolicies}}
+#### Recommend Policies
+{{range $policy := $matrix.RecommendPolicies}}| {{$policy.PolicyName}} | {{if $policy.IsPassing}}✅ PASS{{else}}💡 FAIL{{end}} |
+{{if not $policy.IsPassing}}{{range $msg := $policy.FailMessages}}  - {{$msg}}{{end}}{{end}}
 {{end}}
 {{end}}
-{{end}}
+
 {{end}}
 
 </details>

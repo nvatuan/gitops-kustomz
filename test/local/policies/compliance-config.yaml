@@ -6,9 +6,9 @@ policies:
     filePath: ha.rego
 
     enforcement:
-      inEffectAfter: 2025-10-11T00:00:00Z
-      isWarningAfter: 2026-01-14T00:00:00Z
-      isBlockingAfter: 2026-02-14T00:00:00Z
+      inEffectAfter: null
+      isWarningAfter: 2025-10-14T00:00:00Z
+      isBlockingAfter: null
 
       override:
         comment: "/sp-override-ha"
@@ -21,8 +21,8 @@ policies:
 
     enforcement:
       inEffectAfter: 2025-10-11T00:00:00Z
-      isWarningAfter: 2026-01-14T00:00:00Z
-      isBlockingAfter: 2026-02-14T00:00:00Z
+      isWarningAfter: 2025-10-12T00:00:00Z
+      isBlockingAfter: 2025-10-12T00:00:00Z
 
       override:
         comment: "/sp-override-taggings"
