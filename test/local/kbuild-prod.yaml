@@ -75,18 +75,40 @@ spec:
           requests:
             cpu: 500m
             memory: 256Mi
-      affinity:
-        podAntiAffinity:
-          preferredDuringSchedulingIgnoredDuringExecution:
-          - weight: 100
-            podAffinityTerm:
-              labelSelector:
-                matchExpressions:
-                - key: app
-                  operator: In
-                  values:
-                  - my-app
-              topologyKey: topology.kubernetes.io/hostname
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  labels:
+    environment: prod
+  name: prod-hello-world-cronjob
+  namespace: my-app-prod
+spec:
+  failedJobsHistoryLimit: 1
+  jobTemplate:
+    metadata:
+      labels:
+        environment: prod
+    spec:
+      backoffLimit: 0
+      template:
+        metadata:
+          labels:
+            environment: prod
+        spec:
+          containers:
+          - command:
+            - /bin/sh
+            - -c
+            - |
+              echo "hello world"
+              sleep 1800  # 30 minutes = 1800 seconds
+              echo "shutting down"
+            image: busybox:1.35
+            name: hello-world
+          restartPolicy: Never
+  schedule: 0 */12 * * *
+  successfulJobsHistoryLimit: 3
 ---
 apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler

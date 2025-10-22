@@ -52,6 +52,10 @@ run: build
 	${BIN_DIR}/${BINARY_NAME}
 
 # Run in local mode with test data
+# Usage: make run-local (default DEBUG=0, LOGLEVEL=info)
+# Usage: DEBUG=1 make run-local (enable debug logging)
+# Usage: LOGLEVEL=debug make run-local (set log level)
+# Usage: DEBUG=1 LOGLEVEL=trace make run-local (both debug and trace logging)
 run-local: build
 	${BIN_DIR}/${BINARY_NAME} --run-mode local \
 		--service my-app \
@@ -60,7 +64,9 @@ run-local: build
 		--lc-after-manifests-path test/local/after/services \
 		--policies-path test/local/policies \
 		--templates-path test/local/templates \
-		--lc-output-dir test/output
+		--output-dir test/output \
+		--enable-export-report true \
+		--debug true;
 	@echo ""
 	@echo "📄 Reports generated:"
 	@ls -lh test/output/*.md
@@ -86,10 +92,14 @@ help:
 	@echo "  build          - Build the binary"
 	@echo "  install        - Install the binary to GOPATH/bin"
 	@echo "  test           - Run tests with coverage"
-	@echo "  test-coverage  - Generate HTML coverage report"
+	@echo "  test-coverage   - Generate HTML coverage report"
 	@echo "  lint           - Run linter"
 	@echo "  clean          - Clean build artifacts"
 	@echo "  run-local      - Run in local mode with test data"
+	@echo "                   Usage: make run-local (DEBUG=0, LOGLEVEL=info)"
+	@echo "                   Usage: DEBUG=1 make run-local (debug mode)"
+	@echo "                   Usage: LOGLEVEL=debug make run-local (set log level)"
+	@echo "                   Usage: DEBUG=1 LOGLEVEL=trace make run-local (both)"
 	@echo "  test-policies  - Test OPA policies"
 	@echo "  fmt            - Format code"
 	@echo "  security       - Check for security issues"

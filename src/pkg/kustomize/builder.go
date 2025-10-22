@@ -6,23 +6,34 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"time"
 )
 
 const (
-	KUSTOMIZE_BASE_DIR  = "base"
-	KUSTOMIZE_ENV_DIR   = "environments"
-	KUSTOMIZE_FILE_NAME = "kustomization.yaml"
+	KUSTOMIZE_BASE_DIR         = "base"
+	KUSTOMIZE_OVERLAY_DIR_NAME = "environments"
 )
+
+var (
+	KUSTOMIZE_FILE_NAMES = []string{"kustomization.yaml", "kustomization.yml"}
+)
+
+// Expected structure for Kustomize building:
+// - <manifestRoot>/
+// |-- <service>/
+// |   |-- <KUSTOMIZE_BASE_DIR>/
+// |   |-- <KUSTOMIZE_OVERLAY_DIR_NAME>/
+// |   |   |-- <overlayName>/
+// |   |   |   |-- <kustomization.yaml / kustomization.yml>
+// |   |   |   |-- <other files>
+// |   |   |-- <overlayName_2>/
+// |   |   |   |-- <kustomization.yaml / kustomization.yml>
+// |   |   |   |-- <other files>
 
 // KustomizeBuilder defines the interface for building Kubernetes manifests
 type KustomizeBuilder interface {
 	// Build runs kustomize build on the specified path
-	Build(ctx context.Context, path string) ([]byte, error)
-	// ValidateServiceEnvironment checks if a service/environment combination exists
-	ValidateServiceEnvironment(manifestsPath, service, environment string) error
-	// GetServiceEnvironmentPath returns the path to build for a service/environment
-	GetServiceEnvironmentPath(manifestsPath, service, environment string) string
+	Build(ctx context.Context, manifestRoot, service, overlayName string) ([]byte, error)
+	BuildToText(ctx context.Context, manifestRoot, service, overlayName string) (string, error)
 }
 
 // Builder handles kustomize builds
@@ -36,17 +47,26 @@ func NewBuilder() *Builder {
 	return &Builder{}
 }
 
-// Build runs kustomize build on the specified path
-func (b *Builder) Build(ctx context.Context, path string) ([]byte, error) {
-	start := time.Now()
+func (b *Builder) Build(ctx context.Context, manifestRoot, service, overlayName string) ([]byte, error) {
+	path, err := b.getServiceEnvironmentPath(manifestRoot, service, overlayName)
+	if err != nil {
+		return nil, err
+	}
+	return b.buildAtPath(ctx, path)
+}
 
+func (b *Builder) BuildToText(ctx context.Context, manifestRoot, service, overlayName string) (string, error) {
+	bytes, err := b.Build(ctx, manifestRoot, service, overlayName)
+	if err != nil {
+		return "", err
+	}
+	return string(bytes), nil
+}
+
+// Build runs kustomize build on the specified path
+func (b *Builder) buildAtPath(ctx context.Context, path string) ([]byte, error) {
 	cmd := exec.CommandContext(ctx, "kustomize", "build", path)
 	output, err := cmd.CombinedOutput()
-
-	duration := time.Since(start)
-	if duration > 2*time.Second {
-		fmt.Fprintf(os.Stderr, "Warning: kustomize build took %v (>2s target)\n", duration)
-	}
 
 	if err != nil {
 		return nil, fmt.Errorf("kustomize build failed: %w\nOutput: %s", err, string(output))
@@ -55,8 +75,16 @@ func (b *Builder) Build(ctx context.Context, path string) ([]byte, error) {
 	return output, nil
 }
 
+// GetServiceEnvironmentPath returns the path to build for a service/environment
+func (b *Builder) getServiceEnvironmentPath(manifestRoot, service, overlayName string) (string, error) {
+	if err := b.validateServiceEnvironment(manifestRoot, service, overlayName); err != nil {
+		return "", err
+	}
+	return filepath.Join(manifestRoot, service, KUSTOMIZE_OVERLAY_DIR_NAME, overlayName), nil
+}
+
 // ValidateServiceEnvironment checks if a service/environment combination exists
-func (b *Builder) ValidateServiceEnvironment(manifestsPath, service, environment string) error {
+func (b *Builder) validateServiceEnvironment(manifestsPath, service, overlayName string) error {
 	// Check if service exists
 	servicePath := filepath.Join(manifestsPath, service)
 	if _, err := os.Stat(servicePath); os.IsNotExist(err) {
@@ -69,26 +97,34 @@ func (b *Builder) ValidateServiceEnvironment(manifestsPath, service, environment
 		return fmt.Errorf("base directory not found for service '%s'", service)
 	}
 
-	baseKustomization := filepath.Join(basePath, KUSTOMIZE_FILE_NAME)
-	if _, err := os.Stat(baseKustomization); os.IsNotExist(err) {
-		return fmt.Errorf("kustomization.yaml not found in base directory for service '%s'", service)
+	if !b.isKustomizeFileInPath(basePath) {
+		return fmt.Errorf("no kustomization file found in base directory for service '%s'", service)
 	}
 
 	// Check if environment exists
-	envPath := filepath.Join(servicePath, KUSTOMIZE_ENV_DIR, environment)
+	envPath := filepath.Join(servicePath, KUSTOMIZE_OVERLAY_DIR_NAME, overlayName)
 	if _, err := os.Stat(envPath); os.IsNotExist(err) {
-		return fmt.Errorf("environment '%s' not found for service '%s' (service may not be deployed to this environment)", environment, service)
+		// we ignore if environment does not exist, because it means the service is not deployed to this environment
+		// instead of: return fmt.Errorf("environment '%s' not found for service '%s'", overlayName, service)
+		fmt.Printf("environment '%s' not found for service '%s', skipping validation\n", overlayName, service)
+		return nil
 	}
 
-	envKustomization := filepath.Join(envPath, KUSTOMIZE_FILE_NAME)
-	if _, err := os.Stat(envKustomization); os.IsNotExist(err) {
-		return fmt.Errorf("kustomization.yaml not found in environment '%s' for service '%s'", environment, service)
+	// If overlay exists, it must be able to build
+	if !b.isKustomizeFileInPath(envPath) {
+		return fmt.Errorf("no kustomization file found in environment '%s' for service '%s'", overlayName, service)
 	}
-
 	return nil
 }
 
-// GetServiceEnvironmentPath returns the path to build for a service/environment
-func (b *Builder) GetServiceEnvironmentPath(manifestsPath, service, environment string) string {
-	return filepath.Join(manifestsPath, service, KUSTOMIZE_ENV_DIR, environment)
+func (b *Builder) isKustomizeFileInPath(kustomizeBuildPath string) bool {
+	found := false
+	for _, kustomizeFileName := range KUSTOMIZE_FILE_NAMES {
+		kustomizeFilePath := filepath.Join(kustomizeBuildPath, kustomizeFileName)
+		if _, err := os.Stat(kustomizeFilePath); err == nil {
+			found = true
+			break
+		}
+	}
+	return found
 }

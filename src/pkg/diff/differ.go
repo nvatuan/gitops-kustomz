@@ -11,7 +11,8 @@ import (
 // ManifestDiffer defines the interface for comparing Kubernetes manifests
 type ManifestDiffer interface {
 	// Diff compares two manifests and returns a unified diff
-	Diff(base, head []byte) (string, error)
+	Diff(before, after []byte) (string, error)
+	DiffText(before, after string) (string, error)
 }
 
 // Differ handles manifest diffing
@@ -25,58 +26,59 @@ func NewDiffer() *Differ {
 	return &Differ{}
 }
 
+// Convert text to bytes and call Diff
+func (d *Differ) DiffText(before, after string) (string, error) {
+	return d.Diff([]byte(before), []byte(after))
+}
+
 // Diff compares two manifests and returns a unified diff
-func (d *Differ) Diff(base, head []byte) (string, error) {
+func (d *Differ) Diff(before, after []byte) (string, error) {
 	// Use system diff -u for unified diff with context
-	return d.unifiedDiff(base, head)
+	return d.unifiedDiff(before, after)
 }
 
 // unifiedDiff uses system diff -u command for proper unified diff with context
-func (d *Differ) unifiedDiff(base, head []byte) (string, error) {
-	if bytes.Equal(base, head) {
+func (d *Differ) unifiedDiff(before, after []byte) (string, error) {
+	if bytes.Equal(before, after) {
 		return "", nil
 	}
 
 	// Create temp files for diff
-	baseFile, err := os.CreateTemp("", "base-*.yaml")
+	beforeFile, err := os.CreateTemp("", "before-*.yaml")
 	if err != nil {
 		return "", fmt.Errorf("failed to create temp file: %w", err)
 	}
 	defer func() {
-		_ = os.Remove(baseFile.Name())
-	}()
-	defer func() {
-		_ = baseFile.Close()
+		_ = beforeFile.Close()
+		_ = os.Remove(beforeFile.Name())
 	}()
 
-	headFile, err := os.CreateTemp("", "head-*.yaml")
+	afterFile, err := os.CreateTemp("", "after-*.yaml")
 	if err != nil {
 		return "", fmt.Errorf("failed to create temp file: %w", err)
 	}
 	defer func() {
-		_ = os.Remove(headFile.Name())
-	}()
-	defer func() {
-		_ = headFile.Close()
+		_ = afterFile.Close()
+		_ = os.Remove(afterFile.Name())
 	}()
 
 	// Write manifests to temp files
-	if _, err := baseFile.Write(base); err != nil {
+	if _, err := beforeFile.Write(before); err != nil {
 		return "", fmt.Errorf("failed to write base manifest: %w", err)
 	}
-	if err := baseFile.Close(); err != nil {
+	if err := beforeFile.Close(); err != nil {
 		return "", fmt.Errorf("failed to close base file: %w", err)
 	}
 
-	if _, err := headFile.Write(head); err != nil {
-		return "", fmt.Errorf("failed to write head manifest: %w", err)
+	if _, err := afterFile.Write(after); err != nil {
+		return "", fmt.Errorf("failed to write after manifest: %w", err)
 	}
-	if err := headFile.Close(); err != nil {
-		return "", fmt.Errorf("failed to close head file: %w", err)
+	if err := afterFile.Close(); err != nil {
+		return "", fmt.Errorf("failed to close after file: %w", err)
 	}
 
 	// Run diff -u
-	cmd := exec.Command("diff", "-u", baseFile.Name(), headFile.Name())
+	cmd := exec.Command("diff", "-u", beforeFile.Name(), afterFile.Name())
 	output, err := cmd.CombinedOutput()
 
 	// diff returns exit code 1 when files differ (not an error)
@@ -88,86 +90,10 @@ func (d *Differ) unifiedDiff(base, head []byte) (string, error) {
 		}
 	}
 
-	// Replace temp file names with "base" and "head"
+	// Replace temp file names with "before" and "after"
 	diffOutput := string(output)
-	diffOutput = strings.ReplaceAll(diffOutput, baseFile.Name(), "base")
-	diffOutput = strings.ReplaceAll(diffOutput, headFile.Name(), "head")
+	diffOutput = strings.ReplaceAll(diffOutput, beforeFile.Name(), "before")
+	diffOutput = strings.ReplaceAll(diffOutput, afterFile.Name(), "after")
 
 	return diffOutput, nil
-}
-
-// simpleDiff creates a simple unified-style diff (fallback - kept for future use)
-// nolint:unused
-func (d *Differ) simpleDiff(base, head []byte) (string, error) {
-	if bytes.Equal(base, head) {
-		return "", nil
-	}
-
-	var result strings.Builder
-	result.WriteString("--- base\n")
-	result.WriteString("+++ head\n")
-
-	baseLines := strings.Split(string(base), "\n")
-	headLines := strings.Split(string(head), "\n")
-
-	// Simple line-by-line comparison
-	// For production, consider using a proper diff algorithm like Myers or patience diff
-	maxLen := len(baseLines)
-	if len(headLines) > maxLen {
-		maxLen = len(headLines)
-	}
-
-	for i := 0; i < maxLen; i++ {
-		var baseLine, headLine string
-		if i < len(baseLines) {
-			baseLine = baseLines[i]
-		}
-		if i < len(headLines) {
-			headLine = headLines[i]
-		}
-
-		if baseLine != headLine {
-			if baseLine != "" {
-				result.WriteString("- " + baseLine + "\n")
-			}
-			if headLine != "" {
-				result.WriteString("+ " + headLine + "\n")
-			}
-		}
-	}
-
-	return result.String(), nil
-}
-
-// HasChanges checks if there are any changes between base and head
-func (d *Differ) HasChanges(base, head []byte) (bool, error) {
-	return !bytes.Equal(base, head), nil
-}
-
-// FormatForMarkdown formats the diff for display in markdown
-func (d *Differ) FormatForMarkdown(diff string, maxLines int) string {
-	if diff == "" {
-		return "_No changes detected_"
-	}
-
-	lines := strings.Split(diff, "\n")
-	lineCount := len(lines)
-
-	// If diff is large, wrap in <details>
-	if lineCount > maxLines {
-		var result strings.Builder
-		result.WriteString(fmt.Sprintf("<details>\n<summary>📝 Diff (%d lines - click to expand)</summary>\n\n", lineCount))
-		result.WriteString("```diff\n")
-		result.WriteString(diff)
-		result.WriteString("\n```\n")
-		result.WriteString("</details>")
-		return result.String()
-	}
-
-	// Small diff, show directly
-	var result strings.Builder
-	result.WriteString("```diff\n")
-	result.WriteString(diff)
-	result.WriteString("\n```")
-	return result.String()
 }

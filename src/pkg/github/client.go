@@ -6,26 +6,26 @@ import (
 	"os"
 	"strings"
 
-	"github.com/gh-nvat/gitops-kustomz/src/pkg/config"
+	"github.com/gh-nvat/gitops-kustomz/src/pkg/models"
 	"github.com/gh-nvat/gitops-kustomz/src/pkg/template"
 	"github.com/google/go-github/v66/github"
 	"golang.org/x/oauth2"
 )
 
-const GH_COMMENT_MARKER = template.DefaultCommentTemplate
+const GH_COMMENT_MARKER = template.ToolCommentSignature
 
 // GitHubClient defines the interface for GitHub API operations
 type GitHubClient interface {
 	// GetPR retrieves pull request information
-	GetPR(ctx context.Context, owner, repo string, number int) (*config.PullRequest, error)
+	GetPR(ctx context.Context, owner, repo string, number int) (*models.PullRequest, error)
 	// CreateComment creates a new comment on a pull request
-	CreateComment(ctx context.Context, owner, repo string, number int, body string) (*config.Comment, error)
+	CreateComment(ctx context.Context, owner, repo string, number int, body string) (*models.Comment, error)
 	// UpdateComment updates an existing comment
 	UpdateComment(ctx context.Context, owner, repo string, commentID int64, body string) error
 	// GetComments retrieves all comments for a pull request
-	GetComments(ctx context.Context, owner, repo string, number int) ([]*config.Comment, error)
+	GetComments(ctx context.Context, owner, repo string, number int) ([]*models.Comment, error)
 	// FindToolComment finds an existing tool-generated comment
-	FindToolComment(ctx context.Context, owner, repo string, number int) (*config.Comment, error)
+	FindToolComment(ctx context.Context, owner, repo string, number int) (*models.Comment, error)
 }
 
 // Client handles GitHub API interactions using go-github
@@ -56,13 +56,13 @@ func NewClient() (*Client, error) {
 }
 
 // GetPR retrieves pull request information
-func (c *Client) GetPR(ctx context.Context, owner, repo string, number int) (*config.PullRequest, error) {
+func (c *Client) GetPR(ctx context.Context, owner, repo string, number int) (*models.PullRequest, error) {
 	pr, _, err := c.client.PullRequests.Get(ctx, owner, repo, number)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get PR: %w", err)
 	}
 
-	return &config.PullRequest{
+	return &models.PullRequest{
 		Number:  pr.GetNumber(),
 		BaseRef: pr.GetBase().GetRef(),
 		BaseSHA: pr.GetBase().GetSHA(),
@@ -72,7 +72,7 @@ func (c *Client) GetPR(ctx context.Context, owner, repo string, number int) (*co
 }
 
 // CreateComment creates a new comment on a pull request
-func (c *Client) CreateComment(ctx context.Context, owner, repo string, number int, body string) (*config.Comment, error) {
+func (c *Client) CreateComment(ctx context.Context, owner, repo string, number int, body string) (*models.Comment, error) {
 	comment := &github.IssueComment{
 		Body: github.String(body),
 	}
@@ -82,7 +82,7 @@ func (c *Client) CreateComment(ctx context.Context, owner, repo string, number i
 		return nil, fmt.Errorf("failed to create comment: %w", err)
 	}
 
-	return &config.Comment{
+	return &models.Comment{
 		ID:   created.GetID(),
 		Body: created.GetBody(),
 	}, nil
@@ -103,12 +103,13 @@ func (c *Client) UpdateComment(ctx context.Context, owner, repo string, commentI
 }
 
 // GetComments retrieves all comments for a pull request
-func (c *Client) GetComments(ctx context.Context, owner, repo string, number int) ([]*config.Comment, error) {
+// Current limitation it will only fetch first 200 comments, hopefully it contains override messages..
+func (c *Client) GetComments(ctx context.Context, owner, repo string, number int) ([]*models.Comment, error) {
 	opts := &github.IssueListCommentsOptions{
-		ListOptions: github.ListOptions{PerPage: 100},
+		ListOptions: github.ListOptions{PerPage: 200},
 	}
 
-	var allComments []*config.Comment
+	var allComments []*models.Comment
 	for {
 		comments, resp, err := c.client.Issues.ListComments(ctx, owner, repo, number, opts)
 		if err != nil {
@@ -116,7 +117,7 @@ func (c *Client) GetComments(ctx context.Context, owner, repo string, number int
 		}
 
 		for _, c := range comments {
-			allComments = append(allComments, &config.Comment{
+			allComments = append(allComments, &models.Comment{
 				ID:   c.GetID(),
 				Body: c.GetBody(),
 			})
@@ -133,19 +134,18 @@ func (c *Client) GetComments(ctx context.Context, owner, repo string, number int
 
 // FindToolComment finds an existing tool-generated comment
 // If multiple comments with the same marker exist, returns the latest one (highest ID)
-func (c *Client) FindToolComment(ctx context.Context, owner, repo string, number int) (*config.Comment, error) {
+func (c *Client) FindToolComment(ctx context.Context, owner, repo string, number int) (*models.Comment, error) {
 	comments, err := c.GetComments(ctx, owner, repo, number)
 	if err != nil {
 		return nil, err
 	}
 
-	var latestComment *config.Comment
+	var latestComment *models.Comment
 	for _, comment := range comments {
 		if strings.Contains(comment.Body, GH_COMMENT_MARKER) {
-			// If multiple comments exist, keep the one with the highest ID (latest)
-			if latestComment == nil || comment.ID > latestComment.ID {
-				latestComment = comment
-			}
+			// If multiple comments exist, for optmization reason, get the first one
+			latestComment = comment
+			break
 		}
 	}
 
