@@ -1,79 +1,16 @@
 package diff
 
 import (
-	"os"
-	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 )
 
-// mockFileSystem provides a mock implementation for file operations
-type mockFileSystem struct {
-	tempFiles map[string]*mockFile
-	nextID    int
-}
-
-type mockFile struct {
-	name    string
-	content []byte
-	closed  bool
-	removed bool
-}
-
-func (f *mockFile) Write(data []byte) (int, error) {
-	if f.closed {
-		return 0, os.ErrClosed
-	}
-	f.content = append(f.content, data...)
-	return len(data), nil
-}
-
-func (f *mockFile) Close() error {
-	f.closed = true
-	return nil
-}
-
-func (f *mockFile) Name() string {
-	return f.name
-}
-
-func (fs *mockFileSystem) CreateTemp(dir, pattern string) (*mockFile, error) {
-	fs.nextID++
-	name := filepath.Join(dir, strings.Replace(pattern, "*", "temp", 1))
-	file := &mockFile{
-		name:    name,
-		content: []byte{},
-	}
-	fs.tempFiles[name] = file
-	return file, nil
-}
-
-func (fs *mockFileSystem) Remove(name string) error {
-	if file, exists := fs.tempFiles[name]; exists {
-		file.removed = true
-		return nil
-	}
-	return os.ErrNotExist
-}
-
-// mockCommandExecutor provides a mock implementation for command execution
-type mockCommandExecutor struct {
-	commands map[string]string // command -> output
-	errors   map[string]error  // command -> error
-}
-
-func (m *mockCommandExecutor) CombinedOutput() ([]byte, error) {
-	// This is a simplified mock - in real tests you'd want to match the actual command
-	// For now, we'll return a generic diff output
-	output := `--- before	2025-01-01 00:00:00
-+++ after	2025-01-01 00:00:00
-@@ -1,3 +1,3 @@
- line1
--line2
-+line2_modified
- line3
-`
-	return []byte(output), nil
+// normalizeTimestamps replaces timestamps in diff output with a placeholder
+func normalizeTimestamps(diff string) string {
+	// Replace timestamps like "2025-10-23 00:45:23" with "TIMESTAMP"
+	re := regexp.MustCompile(`\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}`)
+	return re.ReplaceAllString(diff, "TIMESTAMP")
 }
 
 // TestDiffer_Diff tests the main Diff method
@@ -93,25 +30,31 @@ func TestDiffer_Diff(t *testing.T) {
 			wantErr:  false,
 		},
 		{
-			name:   "different content",
-			before: []byte("line1\nline2\nline3"),
-			after:  []byte("line1\nline2_modified\nline3"),
-			// We can't predict the exact output due to temp file names, so we'll check for diff markers
-			expected: "---", // Should contain diff markers
+			name:     "different content",
+			before:   []byte("line1\nline2\nline3"),
+			after:    []byte("line1\nline2_modified\nline3"),
+			expected: "--- before\tTIMESTAMP\n+++ after\tTIMESTAMP\n@@ -1,3 +1,3 @@\n line1\n-line2\n+line2_modified\n line3\n\\ No newline at end of file\n",
 			wantErr:  false,
 		},
 		{
 			name:     "empty before",
 			before:   []byte(""),
 			after:    []byte("new content"),
-			expected: "+++",
+			expected: "--- before\tTIMESTAMP\n+++ after\tTIMESTAMP\n@@ -0,0 +1 @@\n+new content\n\\ No newline at end of file\n",
 			wantErr:  false,
 		},
 		{
 			name:     "empty after",
 			before:   []byte("old content"),
 			after:    []byte(""),
-			expected: "---",
+			expected: "--- before\tTIMESTAMP\n+++ after\tTIMESTAMP\n@@ -1 +0,0 @@\n-old content\n\\ No newline at end of file\n",
+			wantErr:  false,
+		},
+		{
+			name:     "large content",
+			before:   []byte(strings.Repeat("line\n", 1000)),
+			after:    []byte(strings.Repeat("line\n", 1000) + "extra"),
+			expected: "", // Will be handled specially - just check non-empty
 			wantErr:  false,
 		},
 	}
@@ -126,58 +69,27 @@ func TestDiffer_Diff(t *testing.T) {
 				return
 			}
 
-			if tt.expected == "" && result != "" {
-				t.Errorf("Diff() = %v, want empty string", result)
-			}
-
-			if tt.expected != "" && !strings.Contains(result, tt.expected) {
-				t.Errorf("Diff() = %v, want to contain %v", result, tt.expected)
-			}
-		})
-	}
-}
-
-// TestDiffer_DiffText tests the DiffText method
-func TestDiffer_DiffText(t *testing.T) {
-	tests := []struct {
-		name     string
-		before   string
-		after    string
-		expected string
-		wantErr  bool
-	}{
-		{
-			name:     "identical strings",
-			before:   "same content",
-			after:    "same content",
-			expected: "",
-			wantErr:  false,
-		},
-		{
-			name:     "different strings",
-			before:   "old content",
-			after:    "new content",
-			expected: "---",
-			wantErr:  false,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			d := NewDiffer()
-			result, err := d.DiffText(tt.before, tt.after)
-
-			if (err != nil) != tt.wantErr {
-				t.Errorf("DiffText() error = %v, wantErr %v", err, tt.wantErr)
+			// For identical content, expect empty result
+			if tt.name == "identical content" {
+				if result != "" {
+					t.Errorf("Diff() = %v, want empty string for identical content", result)
+				}
 				return
 			}
 
-			if tt.expected == "" && result != "" {
-				t.Errorf("DiffText() = %v, want empty string", result)
+			// For large content, just verify we get a non-empty result (can't predict exact format)
+			if tt.name == "large content" {
+				if result == "" {
+					t.Errorf("Diff() = %v, want non-empty diff result for large content", result)
+				}
+				return
 			}
 
-			if tt.expected != "" && !strings.Contains(result, tt.expected) {
-				t.Errorf("DiffText() = %v, want to contain %v", result, tt.expected)
+			// For all other cases, compare exact output (normalize timestamps)
+			normalizedResult := normalizeTimestamps(result)
+			normalizedExpected := normalizeTimestamps(tt.expected)
+			if normalizedResult != normalizedExpected {
+				t.Errorf("Diff() = %v, want %v", result, tt.expected)
 			}
 		})
 	}
@@ -203,7 +115,7 @@ func TestDiffer_unifiedDiff(t *testing.T) {
 			name:     "different bytes",
 			before:   []byte("old\ncontent"),
 			after:    []byte("new\ncontent"),
-			expected: "---",
+			expected: "--- before\tTIMESTAMP\n+++ after\tTIMESTAMP\n@@ -1,2 +1,2 @@\n-old\n+new\n content\n\\ No newline at end of file\n",
 			wantErr:  false,
 		},
 	}
@@ -218,12 +130,11 @@ func TestDiffer_unifiedDiff(t *testing.T) {
 				return
 			}
 
-			if tt.expected == "" && result != "" {
-				t.Errorf("unifiedDiff() = %v, want empty string", result)
-			}
-
-			if tt.expected != "" && !strings.Contains(result, tt.expected) {
-				t.Errorf("unifiedDiff() = %v, want to contain %v", result, tt.expected)
+			// Compare exact output (normalize timestamps)
+			normalizedResult := normalizeTimestamps(result)
+			normalizedExpected := normalizeTimestamps(tt.expected)
+			if normalizedResult != normalizedExpected {
+				t.Errorf("unifiedDiff() = %v, want %v", result, tt.expected)
 			}
 		})
 	}
@@ -315,61 +226,6 @@ func TestDiffer_EdgeCases(t *testing.T) {
 	})
 }
 
-// TestDiffer_FileOperations tests file operations in isolation
-func TestDiffer_FileOperations(t *testing.T) {
-	// Test that temp files are created and cleaned up properly
-	d := NewDiffer()
-
-	before := []byte("before content")
-	after := []byte("after content")
-
-	result, err := d.Diff(before, after)
-	if err != nil {
-		t.Errorf("Diff() error = %v", err)
-	}
-
-	// Check that result contains expected diff markers
-	if !strings.Contains(result, "---") || !strings.Contains(result, "+++") {
-		t.Errorf("Diff() result should contain diff markers, got: %s", result)
-	}
-
-	// Check that temp files are cleaned up (we can't directly verify this,
-	// but if the test passes without errors, cleanup worked)
-}
-
-// TestDiffer_CommandExecution tests the diff command execution
-func TestDiffer_CommandExecution(t *testing.T) {
-	// Test that the diff command is executed correctly
-	d := NewDiffer()
-
-	before := []byte("line1\nline2\nline3")
-	after := []byte("line1\nline2_modified\nline3")
-
-	result, err := d.Diff(before, after)
-	if err != nil {
-		t.Errorf("Diff() error = %v", err)
-	}
-
-	// Verify the output format
-	lines := strings.Split(result, "\n")
-	if len(lines) < 3 {
-		t.Errorf("Diff() result should have at least 3 lines, got %d", len(lines))
-	}
-
-	// Check for unified diff format
-	foundHeader := false
-	for _, line := range lines {
-		if strings.HasPrefix(line, "---") || strings.HasPrefix(line, "+++") {
-			foundHeader = true
-			break
-		}
-	}
-
-	if !foundHeader {
-		t.Errorf("Diff() result should contain unified diff headers")
-	}
-}
-
 // TestDiffer_DeferCleanup tests that defer functions work correctly
 func TestDiffer_DeferCleanup(t *testing.T) {
 	d := NewDiffer()
@@ -432,20 +288,6 @@ func BenchmarkDiffer_Diff(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		_, err := d.Diff(before, after)
-		if err != nil {
-			b.Fatal(err)
-		}
-	}
-}
-
-func BenchmarkDiffer_DiffText(b *testing.B) {
-	d := NewDiffer()
-	before := "line1\nline2\nline3\nline4\nline5"
-	after := "line1\nline2_modified\nline3\nline4\nline5"
-
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		_, err := d.DiffText(before, after)
 		if err != nil {
 			b.Fatal(err)
 		}

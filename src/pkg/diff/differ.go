@@ -49,8 +49,8 @@ func (d *Differ) unifiedDiff(before, after []byte) (string, error) {
 		return "", fmt.Errorf("failed to create temp file: %w", err)
 	}
 	defer func() {
-		beforeFile.Close()
-		os.Remove(beforeFile.Name())
+		_ = beforeFile.Close()
+		_ = os.Remove(beforeFile.Name())
 	}()
 
 	afterFile, err := os.CreateTemp("", "after-*.yaml")
@@ -58,8 +58,8 @@ func (d *Differ) unifiedDiff(before, after []byte) (string, error) {
 		return "", fmt.Errorf("failed to create temp file: %w", err)
 	}
 	defer func() {
-		afterFile.Close()
-		os.Remove(afterFile.Name())
+		_ = afterFile.Close()
+		_ = os.Remove(afterFile.Name())
 	}()
 
 	// Write manifests to temp files
