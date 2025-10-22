@@ -60,15 +60,7 @@ jobs:
 
       - name: Run local mode test
         run: |
-          bin/gitops-kustomz \
-            --run-mode local \
-            --service my-app \
-            --environments stg,prod \
-            --lc-before test/local/before/services/my-app/environments \
-            --lc-after test/local/after/services/my-app/environments \
-            --policies-path sample/policies \
-            --templates-path src/templates \
-            --lc-output-dir test/output
+          make run-local
 
       - name: Verify output
         run: |
