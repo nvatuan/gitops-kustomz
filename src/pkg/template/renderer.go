@@ -116,8 +116,3 @@ func (r *Renderer) RenderString(templateStr string, data interface{}) (string, e
 
 	return buf.String(), nil
 }
-
-// GetDefaultCommentTemplate returns the default embedded comment template
-func (r *Renderer) GetDefaultCommentTemplate() string {
-	return DefaultCommentTemplate
-}

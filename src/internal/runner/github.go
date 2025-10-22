@@ -2,10 +2,15 @@ package runner
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"os"
+	"path/filepath"
+	"time"
 
 	"github.com/gh-nvat/gitops-kustomz/src/pkg/github"
 	"github.com/gh-nvat/gitops-kustomz/src/pkg/models"
+	"github.com/gh-nvat/gitops-kustomz/src/pkg/template"
 )
 
 type RunnerGitHub struct {
@@ -99,174 +104,149 @@ func (r *RunnerGitHub) fetchAndSetPullRequestInfo() error {
 	return nil
 }
 
-// ProcessEnvironment processes a single environment and returns the result
-// func (r *RunnerGitHub) ProcessEnvironment(environment string) (*models.ReportData, error) {
-// 	// Build manifests for this environment
-// 	buildResult, err := r.BuildManifests(environment)
-// 	if err != nil {
-// 		return nil, fmt.Errorf("failed to build manifests: %w", err)
-// 	}
+func (r *RunnerGitHub) BuildManifests() (*models.BuildManifestResult, error) {
+	return r.RunnerBase.BuildManifests()
+}
 
-// 	// Generate diff
-// 	diffContent, err := r.Differ.Diff(buildResult.Manifests.BeforeManifest, buildResult.Manifests.AfterManifest)
-// 	if err != nil {
-// 		return nil, fmt.Errorf("failed to generate diff: %w", err)
-// 	}
+func (r *RunnerGitHub) DiffManifests(result *models.BuildManifestResult) (map[string]models.EnvironmentDiff, error) {
+	return r.RunnerBase.DiffManifests(result)
+}
 
-// 	// Count only actual changed lines (lines starting with + or -)
-// 	addedLines, deletedLines := 0, 0
-// 	for _, line := range strings.Split(diffContent, "\n") {
-// 		if strings.HasPrefix(line, "+ ") {
-// 			addedLines++
-// 		}
-// 		if strings.HasPrefix(line, "- ") {
-// 			deletedLines++
-// 		}
-// 	}
+func (r *RunnerGitHub) Process() error {
+	logger.Info("Process: starting...")
 
-// 	// Create environment diff
-// 	envDiff := models.EnvironmentDiff{
-// 		LineCount:        addedLines + deletedLines,
-// 		AddedLineCount:   addedLines,
-// 		DeletedLineCount: deletedLines,
-// 		Content:          diffContent,
-// 	}
+	rs, err := r.BuildManifests()
+	if err != nil {
+		return err
+	}
+	logger.WithField("results", rs).Debug("Built Manifests")
 
-// 	// TODO: Implement actual policy evaluation and parse directly into PolicyEvaluation
-// 	policyEvaluation := models.PolicyEvaluation{
-// 		EnvironmentSummary: map[string]models.PolicyCounts{
-// 			environment: {
-// 				Success: 0,
-// 				Failed:  0,
-// 				Errored: 0,
-// 			},
-// 		},
-// 		PolicyMatrix: map[string]models.PolicyMatrix{
-// 			environment: {
-// 				BlockingPolicies:    []models.PolicyResult{},
-// 				WarningPolicies:     []models.PolicyResult{},
-// 				RecommendPolicies:   []models.PolicyResult{},
-// 				OverriddenPolicies:  []models.PolicyResult{},
-// 				NotInEffectPolicies: []models.PolicyResult{},
-// 			},
-// 		},
-// 	}
+	diffs, err := r.DiffManifests(rs)
+	if err != nil {
+		return err
+	}
+	logger.WithField("results", diffs).Debug("Diffed Manifests")
 
-// 	// Create report data for this environment
-// 	reportData := &models.ReportData{
-// 		Service:      r.options.Service,
-// 		Timestamp:    time.Now(),
-// 		BaseCommit:   r.prInfo.BaseSHA,
-// 		HeadCommit:   r.prInfo.HeadSHA,
-// 		Environments: []string{environment},
-// 		ManifestChanges: map[string]models.EnvironmentDiff{
-// 			environment: envDiff,
-// 		},
-// 		PolicyEvaluation: policyEvaluation,
-// 	}
+	policyEval, err := r.Evaluator.GeneratePolicyEvalResultForManifests(r.Context, *rs, []string{})
+	if err != nil {
+		return err
+	}
+	logger.WithField("results", policyEval).Debug("Evaluated Policies")
 
-// 	return reportData, nil
-// }
+	reportData := models.ReportData{
+		Service:          r.Options.Service,
+		Timestamp:        time.Now(),
+		BaseCommit:       r.prInfo.BaseSHA,
+		HeadCommit:       r.prInfo.HeadSHA,
+		Environments:     r.Options.Environments,
+		ManifestChanges:  diffs,
+		PolicyEvaluation: *policyEval,
+	}
 
-// // BuildManifests builds manifests for a specific environment
-// func (r *RunnerGitHub) BuildManifests() (*BuildManifestResult, error) {
-// 	results := BuildManifestResult{
-// 		EnvManifestBuild: make(map[string]BuildEnvManifestResult),
-// 	}
-// 	for _, environment := range r.options.Environments {
-// 		baseManifest, headManifest, err := r.buildManifestsFromPR(environment)
-// 		if err != nil {
-// 			return nil, err
-// 		}
-// 		results.EnvManifestBuild[environment] = BuildEnvManifestResult{
-// 			Environment:    environment,
-// 			BeforeManifest: baseManifest,
-// 			AfterManifest:  headManifest,
-// 		}
-// 	}
+	if err := r.Output(&reportData); err != nil {
+		return err
+	}
+	return nil
+}
 
-// 	return &results, nil
-// }
+func (r *RunnerGitHub) Output(data *models.ReportData) error {
+	logger.Info("Output: starting...")
+	if err := r.outputReportJson(data); err != nil {
+		return err
+	}
+	if err := r.outputReportMarkdown(data); err != nil {
+		return err
+	}
+	if err := r.outputGitHubComment(data); err != nil {
+		return err
+	}
+	logger.Info("Output: done.")
+	return nil
+}
 
-// // GenerateReport generates the final report
-// // func (r *RunnerGitHub) GenerateReport(result *BuildManifestResult) (*models.ReportResult, error) {
-// // 	// TODO: Implement report generation with proper template rendering
-// // 	// For now, just combine the environment results
+// Exporting report json file to output directory if enabled
+func (r *RunnerGitHub) outputReportJson(data *models.ReportData) error {
+	if !r.Options.EnableExportReport {
+		logger.Info("OutputJson: option was disabled")
+		return nil
+	}
+	logger.Info("OutputJson: starting...")
 
-// // }
+	resultsJson, err := json.Marshal(data)
+	if err != nil {
+		return err
+	}
+	filePath := filepath.Join(r.Options.OutputDir, "report.json")
+	if err := os.WriteFile(filePath, resultsJson, 0644); err != nil {
+		logger.WithField("filePath", filePath).WithField("error", err).Error("Failed to write report data to file")
+		return err
+	}
+	logger.WithField("filePath", filePath).Info("Written report data to file")
+	return nil
+}
 
-// // // OutputResults outputs the results to GitHub
-// // func (r *RunnerGitHub) OutputResults(report *models.ReportResult) (*models.OutputResult, error) {
-// // 	// Always prepend the marker to the rendered content
-// // 	const COMMENT_MARKER = "<!-- gitops-kustomz: auto-generated comment, please do not remove -->"
-// // 	finalComment := COMMENT_MARKER + "\n\n" + report.RenderedMarkdown
+// Exporting report markdown file to output directory
+func (r *RunnerGitHub) outputReportMarkdown(data *models.ReportData) error {
+	logger.Info("OutputMarkdown: starting...")
 
-// // 	owner, repo, err := github.ParseOwnerRepo(r.options.GhRepo)
-// // 	if err != nil {
-// // 		return &models.OutputResult{Error: err}, fmt.Errorf("failed to parse repository: %w", err)
-// // 	}
+	// Render the markdown using templates
+	renderedMarkdown, err := r.Renderer.RenderWithTemplates(r.Options.TemplatesPath, data)
+	if err != nil {
+		logger.WithField("error", err).Error("Failed to render markdown template")
+		return err
+	}
 
-// // 	// Find existing comment
-// // 	existingComment, err := r.ghclient.FindToolComment(r.ctx, owner, repo, r.options.GhPrNumber)
-// // 	if err != nil {
-// // 		return &models.OutputResult{Error: err}, fmt.Errorf("failed to search for existing comment: %w", err)
-// // 	}
+	// Write the rendered markdown to file
+	filePath := filepath.Join(r.Options.OutputDir, "report.md")
+	if err := os.WriteFile(filePath, []byte(renderedMarkdown), 0644); err != nil {
+		logger.WithField("filePath", filePath).WithField("error", err).Error("Failed to write markdown report to file")
+		return err
+	}
 
-// // 	if existingComment != nil {
-// // 		// Update existing comment
-// // 		if err := r.ghclient.UpdateComment(r.ctx, owner, repo, existingComment.ID, finalComment); err != nil {
-// // 			return &models.OutputResult{Error: err}, fmt.Errorf("failed to update comment: %w", err)
-// // 		}
-// // 		return &models.OutputResult{
-// // 			Success: true,
-// // 			Message: fmt.Sprintf("Updated existing comment (ID: %d)", existingComment.ID),
-// // 		}, nil
-// // 	} else {
-// // 		// Create new comment
-// // 		newComment, err := r.ghclient.CreateComment(r.ctx, owner, repo, r.options.GhPrNumber, finalComment)
-// // 		if err != nil {
-// // 			return &models.OutputResult{Error: err}, fmt.Errorf("failed to create comment: %w", err)
-// // 		}
-// // 		return &models.OutputResult{
-// // 			Success: true,
-// // 			Message: fmt.Sprintf("Created new comment (ID: %d)", newComment.ID),
-// // 		}, nil
-// // 	}
-// // }
+	logger.WithField("filePath", filePath).Info("Written markdown report to file")
+	return nil
+}
 
-// // // buildManifestsFromPR builds manifests from PR (GitHub-specific internal function)
-// // func (r *RunnerGitHub) buildManifestsFromPR(environment string) ([]byte, []byte, error) {
-// // 	// Use manifestsPath from options (default: ./services)
-// // 	servicePath := r.Builder.GetServiceEnvironmentPath(r.options.ManifestsPath, r.options.Service, environment)
+// Post comment to GitHub PR
+func (r *RunnerGitHub) outputGitHubComment(data *models.ReportData) error {
+	logger.Info("OutputGitHubComment: starting...")
 
-// // 	// Build base manifest
-// // 	if err := r.checkoutRef(r.prInfo.BaseSHA); err != nil {
-// // 		return nil, nil, fmt.Errorf("failed to checkout base ref: %w", err)
-// // 	}
+	// Render the markdown using templates
+	renderedMarkdown, err := r.Renderer.RenderWithTemplates(r.Options.TemplatesPath, data)
+	if err != nil {
+		logger.WithField("error", err).Error("Failed to render markdown template")
+		return err
+	}
 
-// // 	baseManifest, err := r.Builder.Build(r.ctx, servicePath)
-// // 	if err != nil {
-// // 		return nil, nil, fmt.Errorf("failed to build base manifest: %w", err)
-// // 	}
+	// Add the comment marker
+	finalComment := template.ToolCommentSignature + "\n\n" + renderedMarkdown
 
-// // 	// Build head manifest
-// // 	if err := r.checkoutRef(r.prInfo.HeadSHA); err != nil {
-// // 		return nil, nil, fmt.Errorf("failed to checkout head ref: %w", err)
-// // 	}
+	owner, repo, err := github.ParseOwnerRepo(r.Options.GhRepo)
+	if err != nil {
+		return fmt.Errorf("failed to parse repository: %w", err)
+	}
 
-// // 	headManifest, err := r.Builder.Build(r.ctx, servicePath)
-// // 	if err != nil {
-// // 		return nil, nil, fmt.Errorf("failed to build head manifest: %w", err)
-// // 	}
+	// Check if there's an existing comment from this tool
+	existingComment, err := r.ghclient.FindToolComment(r.Context, owner, repo, r.Options.GhPrNumber)
+	if err != nil {
+		logger.WithField("error", err).Warn("Failed to find existing comment, will create new one")
+	}
 
-// // 	return baseManifest, headManifest, nil
-// // }
+	if existingComment != nil {
+		// Update existing comment
+		if err := r.ghclient.UpdateComment(r.Context, owner, repo, existingComment.ID, finalComment); err != nil {
+			logger.WithField("error", err).Error("Failed to update existing comment")
+			return err
+		}
+		logger.Info("Updated existing GitHub comment")
+	} else {
+		// Create new comment
+		if _, err := r.ghclient.CreateComment(r.Context, owner, repo, r.Options.GhPrNumber, finalComment); err != nil {
+			logger.WithField("error", err).Error("Failed to create new comment")
+			return err
+		}
+		logger.Info("Created new GitHub comment")
+	}
 
-// // // checkoutRef checks out a specific git ref (GitHub-specific internal function)
-// // func (r *RunnerGitHub) checkoutRef(ref string) error {
-// // 	cmd := exec.Command("git", "checkout", ref)
-// // 	if output, err := cmd.CombinedOutput(); err != nil {
-// // 		return fmt.Errorf("git checkout failed: %w\nOutput: %s", err, string(output))
-// // 	}
-// // 	return nil
-// // }
+	return nil
+}

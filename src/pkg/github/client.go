@@ -12,7 +12,7 @@ import (
 	"golang.org/x/oauth2"
 )
 
-const GH_COMMENT_MARKER = template.DefaultCommentTemplate
+const GH_COMMENT_MARKER = template.ToolCommentSignature
 
 // GitHubClient defines the interface for GitHub API operations
 type GitHubClient interface {
@@ -103,9 +103,10 @@ func (c *Client) UpdateComment(ctx context.Context, owner, repo string, commentI
 }
 
 // GetComments retrieves all comments for a pull request
+// Current limitation it will only fetch first 200 comments, hopefully it contains override messages..
 func (c *Client) GetComments(ctx context.Context, owner, repo string, number int) ([]*models.Comment, error) {
 	opts := &github.IssueListCommentsOptions{
-		ListOptions: github.ListOptions{PerPage: 100},
+		ListOptions: github.ListOptions{PerPage: 200},
 	}
 
 	var allComments []*models.Comment
@@ -142,10 +143,9 @@ func (c *Client) FindToolComment(ctx context.Context, owner, repo string, number
 	var latestComment *models.Comment
 	for _, comment := range comments {
 		if strings.Contains(comment.Body, GH_COMMENT_MARKER) {
-			// If multiple comments exist, keep the one with the highest ID (latest)
-			if latestComment == nil || comment.ID > latestComment.ID {
-				latestComment = comment
-			}
+			// If multiple comments exist, for optmization reason, get the first one
+			latestComment = comment
+			break
 		}
 	}
 
