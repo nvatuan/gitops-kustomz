@@ -77,17 +77,17 @@ func (r *RunnerBase) Initialize() error {
 	return nil
 }
 
-func (r *RunnerBase) BuildManifests() (*models.BuildManifestResult, error) {
+func (r *RunnerBase) BuildManifests(beforePath, afterPath string) (*models.BuildManifestResult, error) {
 	logger.Info("BuildManifests: starting...")
 
 	results := make(map[string]models.BuildEnvManifestResult)
 	envs := r.Options.Environments
 	for _, env := range envs {
-		beforeManifest, err := r.Builder.Build(r.Context, r.Options.LcBeforeManifestsPath, r.Options.Service, env)
+		beforeManifest, err := r.Builder.Build(r.Context, beforePath, env)
 		if err != nil {
 			return nil, err
 		}
-		afterManifest, err := r.Builder.Build(r.Context, r.Options.LcAfterManifestsPath, r.Options.Service, env)
+		afterManifest, err := r.Builder.Build(r.Context, afterPath, env)
 		if err != nil {
 			return nil, err
 		}
@@ -157,7 +157,9 @@ func (r *RunnerBase) EvaluatePolicies(mf *models.BuildManifestResult) (*models.P
 func (r *RunnerBase) Process() error {
 	logger.Info("Process: starting...")
 
-	rs, err := r.BuildManifests()
+	beforePath := filepath.Join(r.Options.LcBeforeManifestsPath, r.Options.Service)
+	afterPath := filepath.Join(r.Options.LcAfterManifestsPath, r.Options.Service)
+	rs, err := r.BuildManifests(beforePath, afterPath)
 	if err != nil {
 		return err
 	}

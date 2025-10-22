@@ -43,8 +43,8 @@ func (r *RunnerLocal) Initialize() error {
 	return r.RunnerBase.Initialize()
 }
 
-func (r *RunnerLocal) BuildManifests() (*models.BuildManifestResult, error) {
-	return r.RunnerBase.BuildManifests()
+func (r *RunnerLocal) BuildManifests(beforePath, afterPath string) (*models.BuildManifestResult, error) {
+	return r.RunnerBase.BuildManifests(beforePath, afterPath)
 }
 
 func (r *RunnerLocal) DiffManifests(result *models.BuildManifestResult) (map[string]models.EnvironmentDiff, error) {
@@ -54,7 +54,9 @@ func (r *RunnerLocal) DiffManifests(result *models.BuildManifestResult) (map[str
 func (r *RunnerLocal) Process() error {
 	logger.Info("Process: starting...")
 
-	rs, err := r.BuildManifests()
+	beforePath := filepath.Join(r.Options.LcBeforeManifestsPath, r.Options.Service)
+	afterPath := filepath.Join(r.Options.LcAfterManifestsPath, r.Options.Service)
+	rs, err := r.BuildManifests(beforePath, afterPath)
 	if err != nil {
 		return err
 	}
