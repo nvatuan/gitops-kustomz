@@ -8,8 +8,11 @@ import (
 	"path/filepath"
 	"time"
 
+	"github.com/gh-nvat/gitops-kustomz/src/pkg/diff"
 	"github.com/gh-nvat/gitops-kustomz/src/pkg/github"
+	"github.com/gh-nvat/gitops-kustomz/src/pkg/kustomize"
 	"github.com/gh-nvat/gitops-kustomz/src/pkg/models"
+	"github.com/gh-nvat/gitops-kustomz/src/pkg/policy"
 	"github.com/gh-nvat/gitops-kustomz/src/pkg/template"
 )
 
@@ -25,20 +28,26 @@ type RunnerGitHub struct {
 
 func NewRunnerGitHub(
 	ctx context.Context,
+	options *Options,
 	ghclient *github.Client,
-	baseRunner *RunnerBase,
+	builder *kustomize.Builder,
+	differ *diff.Differ,
+	evaluator *policy.PolicyEvaluator,
+	renderer *template.Renderer,
 ) (*RunnerGitHub, error) {
 	if ghclient == nil {
 		return nil, fmt.Errorf("GitHub client is not initialized")
 	}
-	if baseRunner == nil {
-		return nil, fmt.Errorf("base runner is not initialized")
+	baseRunner, err := NewRunnerBase(ctx, options, builder, differ, evaluator, renderer)
+	if err != nil {
+		return nil, err
 	}
-	return &RunnerGitHub{
+	runner := &RunnerGitHub{
 		RunnerBase: *baseRunner,
 		ghclient:   ghclient,
-		options:    baseRunner.Options,
-	}, nil
+		options:    options,
+	}
+	return runner, nil
 }
 
 func (r *RunnerGitHub) Initialize() error {

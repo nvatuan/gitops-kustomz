@@ -6,6 +6,7 @@ import (
 
 	"github.com/gh-nvat/gitops-kustomz/src/internal/runner"
 	"github.com/gh-nvat/gitops-kustomz/src/pkg/diff"
+	"github.com/gh-nvat/gitops-kustomz/src/pkg/github"
 	"github.com/gh-nvat/gitops-kustomz/src/pkg/kustomize"
 	"github.com/gh-nvat/gitops-kustomz/src/pkg/policy"
 	"github.com/gh-nvat/gitops-kustomz/src/pkg/template"
@@ -32,14 +33,16 @@ func createRunner(ctx context.Context, opts *runner.Options) (runner.RunnerInter
 
 	switch opts.RunMode {
 	case RUN_MODE_GITHUB:
-		// ghClient, err := github.NewClient()
-		// if err != nil {
-		// 	return nil, fmt.Errorf("GitHub authentication failed: %w", err)
-		// }
-		// runnerInstance, err = runner.NewRunnerGitHub(ctx, opts, ghClient, baseRunner)
-		// if err != nil {
-		// 	return nil, fmt.Errorf("failed to create GitHub runner: %w", err)
-		// }
+		ghClient, err := github.NewClient()
+		if err != nil {
+			return nil, fmt.Errorf("GitHub authentication failed: %w", err)
+		}
+		runner, err := runner.NewRunnerGitHub(
+			ctx, opts, ghClient, builder, differ, evaluator, renderer)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create GitHub runner: %w", err)
+		}
+		return runner, nil
 	case RUN_MODE_LOCAL:
 		runner, err := runner.NewRunnerLocal(
 			ctx, opts, builder, differ, evaluator, renderer,
@@ -51,7 +54,6 @@ func createRunner(ctx context.Context, opts *runner.Options) (runner.RunnerInter
 	default:
 		return nil, fmt.Errorf("invalid run mode: %s", opts.RunMode)
 	}
-	return nil, fmt.Errorf("invalid run mode: %s", opts.RunMode)
 }
 
 func initialize(ctx context.Context, opts *runner.Options) (runner.RunnerInterface, error) {
