@@ -42,16 +42,6 @@ spec:
         environment: prod
         version: v1.0.0
     spec:
-      affinity:
-        podAntiAffinity:
-          requiredDuringSchedulingIgnoredDuringExecution:
-          - labelSelector:
-              matchExpressions:
-              - key: app
-                operator: In
-                values:
-                - my-app
-            topologyKey: kubernetes.io/hostname
       containers:
       - env:
         - name: ENVIRONMENT

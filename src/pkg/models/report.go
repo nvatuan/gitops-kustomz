@@ -4,65 +4,76 @@ import "time"
 
 // ReportData represents the complete report data structure
 type ReportData struct {
-	Service      string
-	Timestamp    time.Time
-	BaseCommit   string
-	HeadCommit   string
-	Environments []string
+	Service      string    `json:"service"`
+	Timestamp    time.Time `json:"timestamp"`
+	BaseCommit   string    `json:"baseCommit"`
+	HeadCommit   string    `json:"headCommit"`
+	Environments []string  `json:"environments"`
 
 	// Manifest changes per environment
-	ManifestChanges map[string]EnvironmentDiff
+	ManifestChanges map[string]EnvironmentDiff `json:"manifestChanges"`
 
 	// Policy evaluation results
-	PolicyEvaluation PolicyEvaluation
+	PolicyEvaluation PolicyEvaluation `json:"policyEvaluation"`
 }
 
 // EnvironmentDiff represents diff data for a single environment
 type EnvironmentDiff struct {
-	LineCount        int
-	AddedLineCount   int
-	DeletedLineCount int
-	Content          string
+	LineCount        int    `json:"lineCount"`
+	AddedLineCount   int    `json:"addedLineCount"`
+	DeletedLineCount int    `json:"deletedLineCount"`
+	Content          string `json:"content"`
 }
 
 // PolicyEvaluationSummary represents the overall policy evaluation results
 type PolicyEvaluation struct {
 	// Summary table: Environment -> Success/Failed/Errored counts
-	EnvironmentSummary map[string]PolicyCounts
+	EnvironmentSummary map[string]EnvironmentSummaryEnv `json:"environmentSummary"`
 
 	// Detailed policy matrix
-	PolicyMatrix map[string]PolicyMatrix
+	PolicyMatrix map[string]PolicyMatrix `json:"policyMatrix"`
 }
 
-// PolicyCounts represents the count of policies by status for an environment
+type EnvironmentSummaryEnv struct {
+	PassingStatus EnforcementPassingStatus `json:"passingStatus"`
+	PolicyCounts  PolicyCounts             `json:"policyCounts"`
+}
+
+type EnforcementPassingStatus struct {
+	PassBlockingCheck  bool `json:"passBlockingCheck"`
+	PassWarningCheck   bool `json:"passWarningCheck"`
+	PassRecommendCheck bool `json:"passRecommendCheck"`
+}
+
 type PolicyCounts struct {
-	Success int
-	Failed  int
-	Errored int
+	Total   int `json:"total"`
+	Success int `json:"success"`
+	Failed  int `json:"failed"`
+	Omitted int `json:"omitted"`
 }
 
 // PolicyMatrix represents the detailed policy evaluation matrix
 type PolicyMatrix struct {
 	// Policies grouped by enforcement level
-	BlockingPolicies    []PolicyResult
-	WarningPolicies     []PolicyResult
-	RecommendPolicies   []PolicyResult
-	OverriddenPolicies  []PolicyResult
-	NotInEffectPolicies []PolicyResult
+	BlockingPolicies    []PolicyResult `json:"blockingPolicies"`
+	WarningPolicies     []PolicyResult `json:"warningPolicies"`
+	RecommendPolicies   []PolicyResult `json:"recommendPolicies"`
+	OverriddenPolicies  []PolicyResult `json:"overriddenPolicies"`
+	NotInEffectPolicies []PolicyResult `json:"notInEffectPolicies"`
 }
 
 // PolicyResult represents the result of a single policy evaluation
 type PolicyResult struct {
-	PolicyName   string
-	Enforcement  string // "BLOCKING", "WARNING", "RECOMMEND"
-	Status       string // "Overridden", "Not In Effect", etc.
-	FailMessages []string
+	PolicyId     string   `json:"policyId"`
+	PolicyName   string   `json:"policyName"`
+	IsPassing    bool     `json:"isPassing"` // true or false, if false, FailMessages is not empty
+	FailMessages []string `json:"failMessages"`
 }
 
 // ReportTemplateData represents the data structure for template rendering
 type ReportTemplateData struct {
 	ReportData
-	RenderedMarkdown string
+	RenderedMarkdown string `json:"renderedMarkdown"`
 }
 
 /* sample of desired report

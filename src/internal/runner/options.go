@@ -3,12 +3,15 @@ package runner
 type Options struct {
 	// Run mode
 	RunMode string // "github" or "local"
+	Debug   bool   // Debug mode
 
 	// Common options
-	Service       string
-	Environments  []string // Support multiple environments
-	PoliciesPath  string
-	TemplatesPath string
+	Service            string
+	Environments       []string // Support multiple environments
+	PoliciesPath       string
+	TemplatesPath      string
+	OutputDir          string
+	EnableExportReport bool
 
 	// GitHub mode options
 	GhRepo        string
@@ -18,5 +21,4 @@ type Options struct {
 	// Local mode options
 	LcBeforeManifestsPath string
 	LcAfterManifestsPath  string
-	LcOutputDir           string
 }

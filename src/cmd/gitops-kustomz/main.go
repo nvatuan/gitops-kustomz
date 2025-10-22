@@ -48,6 +48,11 @@ It builds kustomize manifests, diffs them, evaluates OPA policies, and posts det
 		"Path to policies directory (contains compliance-config.yaml)")
 	cmd.Flags().StringVar(&opts.TemplatesPath, "templates-path", "./templates",
 		"Path to templates directory")
+	cmd.Flags().BoolVar(&opts.Debug, "debug", false, "Debug mode")
+
+	cmd.Flags().StringVar(&opts.OutputDir, "output-dir", "./output",
+		"Output directory in case the tool need to export files. In local mode, the tool will export the report to this directory.")
+	cmd.Flags().BoolVar(&opts.EnableExportReport, "enable-export-report", false, "Enable export report (json file to output dir)")
 
 	// GitHub mode flags
 	cmd.Flags().StringVar(&opts.GhRepo, "gh-repo", "",
@@ -62,8 +67,6 @@ It builds kustomize manifests, diffs them, evaluates OPA policies, and posts det
 		"Path to before/base services directory [local mode]")
 	cmd.Flags().StringVar(&opts.LcAfterManifestsPath, "lc-after-manifests-path", "",
 		"Path to after/head services directory [local mode]")
-	cmd.Flags().StringVar(&opts.LcOutputDir, "lc-output-dir", "./output",
-		"Local mode output directory [local mode]")
 
 	// Mark required flags
 	_ = cmd.MarkFlagRequired("service")
