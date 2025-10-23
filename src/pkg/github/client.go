@@ -16,6 +16,8 @@ import (
 	"golang.org/x/oauth2"
 )
 
+var logger = log.WithField("package", "github")
+
 const GH_COMMENT_MARKER = template.ToolCommentSignature
 
 // GitHubClient defines the interface for GitHub API operations
@@ -183,6 +185,8 @@ func (c *Client) FindToolComment(ctx context.Context, repo string, prNumber int)
 // 3. git checkout branch
 // 4. return directory
 func (c *Client) SparseCheckoutAtPath(ctx context.Context, repo, branch, path string) (string, error) {
+	logger.WithField("repo", repo).WithField("branch", branch).WithField("path", path).Info("Sparse checking out at path")
+
 	chkoutName := strings.ReplaceAll(branch, "/", "_")
 	checkoutDir := fmt.Sprintf("tmp-checkout-%s-%d", chkoutName, time.Now().Unix())
 	cloneURL, err := GetCloneURLForRepo(repo)
@@ -191,12 +195,14 @@ func (c *Client) SparseCheckoutAtPath(ctx context.Context, repo, branch, path st
 	}
 
 	// 1. git clone --filter=blob:none --depth 1 --no-checkout --single-branch -b branch cloneURL directory
+	logger.WithField("checkoutDir", checkoutDir).Info("Cloning...")
 	cloneCmd := exec.CommandContext(ctx, "git", "clone", "--filter=blob:none", "--depth", "1", "--no-checkout", "--single-branch", "-b", branch, cloneURL, checkoutDir)
 	if err := cloneCmd.Run(); err != nil {
 		return "", fmt.Errorf("failed to clone: %w", err)
 	}
 
 	// 2. git sparse-checkout set --no-cone path
+	logger.WithField("checkoutDir", checkoutDir).Info("Checking out path...")
 	sparseCmd := exec.CommandContext(ctx, "git", "sparse-checkout", "set", "--no-cone", path)
 	sparseCmd.Dir = checkoutDir
 	if err := sparseCmd.Run(); err != nil {
@@ -205,6 +211,7 @@ func (c *Client) SparseCheckoutAtPath(ctx context.Context, repo, branch, path st
 	}
 
 	// 3. git checkout branch
+	logger.WithField("checkoutDir", checkoutDir).Info("Checking out branch...")
 	checkoutCmd := exec.CommandContext(ctx, "git", "checkout", branch)
 	checkoutCmd.Dir = checkoutDir
 	if err := checkoutCmd.Run(); err != nil {
@@ -214,9 +221,22 @@ func (c *Client) SparseCheckoutAtPath(ctx context.Context, repo, branch, path st
 
 	// 4. return directory
 	absPath, err := filepath.Abs(checkoutDir)
+	logger.WithField("checkoutDir", checkoutDir).WithField("absPath", absPath).Info("Absolute path...")
 	if err != nil {
 		_ = os.RemoveAll(checkoutDir)
 		return "", fmt.Errorf("failed to get absolute path: %w", err)
+	}
+
+	// debug: list out the files in the parent of checkout directory
+	if os.Getenv("DEBUG") == "1" {
+		files, err := os.ReadDir(filepath.Dir(absPath))
+		if err != nil {
+			return "", fmt.Errorf("failed to read directory: %w", err)
+		}
+		logger.WithField("files", files).Debug("Files in parent directory...")
+		for _, file := range files {
+			logger.WithField("file", file.Name()).Debug("File...")
+		}
 	}
 	return absPath, nil
 }
