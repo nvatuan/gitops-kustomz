@@ -187,8 +187,13 @@ func (c *Client) FindToolComment(ctx context.Context, repo string, prNumber int)
 func (c *Client) SparseCheckoutAtPath(ctx context.Context, repo, branch, path string) (string, error) {
 	logger.WithField("repo", repo).WithField("branch", branch).WithField("path", path).Info("Sparse checking out at path")
 
+	cwd, err := os.Getwd()
+	if err != nil {
+		return "", fmt.Errorf("failed to get working directory: %w", err)
+	}
+
 	chkoutName := strings.ReplaceAll(branch, "/", "_")
-	checkoutDir := fmt.Sprintf("tmp-checkout-%s-%d", chkoutName, time.Now().Unix())
+	checkoutDir := filepath.Join(cwd, fmt.Sprintf("tmp-checkout-%s-%d", chkoutName, time.Now().Unix()))
 	cloneURL, err := GetCloneURLForRepo(repo)
 	if err != nil {
 		return "", fmt.Errorf("failed to get clone URL: %w", err)
@@ -227,16 +232,5 @@ func (c *Client) SparseCheckoutAtPath(ctx context.Context, repo, branch, path st
 		return "", fmt.Errorf("failed to get absolute path: %w", err)
 	}
 
-	// debug: list out the files in the parent of checkout directory
-	if os.Getenv("DEBUG") == "1" {
-		files, err := os.ReadDir(filepath.Dir(absPath))
-		if err != nil {
-			return "", fmt.Errorf("failed to read directory: %w", err)
-		}
-		logger.WithField("files", files).Debug("Files in parent directory...")
-		for _, file := range files {
-			logger.WithField("file", file.Name()).Debug("File...")
-		}
-	}
 	return absPath, nil
 }
