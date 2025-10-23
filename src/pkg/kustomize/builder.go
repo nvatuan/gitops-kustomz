@@ -93,6 +93,17 @@ func (b *Builder) getBuildPath(path string, overlayName string) (string, error) 
 // ValidateServiceEnvironment checks if a service/environment combination exists
 // path here is fullpath to a service (manifestRoot + service)
 func (b *Builder) validateBuildPath(path, overlayName string) error {
+	logger.WithField("path", path).WithField("overlayName", overlayName).Info("Validating build path...")
+
+	/// debug code, list ls -la at path
+	cmd := exec.Command("ls", "-la", path)
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("failed to list directory: %w\nOutput: %s", err, string(output))
+	}
+	logger.WithField("path", path).WithField("output", string(output)).Info("Listed directory...")
+	// --
+
 	// Check if service exists
 	if _, err := os.Stat(path); os.IsNotExist(err) {
 		return fmt.Errorf("path '%s' not found", path)
