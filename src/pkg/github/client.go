@@ -239,8 +239,8 @@ func (c *Client) SparseCheckoutAtPath(ctx context.Context, repo, branch, path st
 	}
 
 	// list files with permissions in the following directory [pwd, tmpdir, checkoutDir]
-	logger.Info("DEBUGGING: LISTING FILES IN THE FOLLOWING DIRECTORIES [pwd, tmpdir, checkoutDir]")
-	dirs := []string{pwd, tmpdir, checkoutDir}
+	logger.Info("DEBUGGING: LISTING FILES IN THE FOLLOWING DIRECTORIES [pwd, tmpdir, absPath]")
+	dirs := []string{pwd, tmpdir, absPath}
 	for _, dir := range dirs {
 		logger.WithField("dir", dir).Info("Started list ls -la...")
 		lsCmd := exec.CommandContext(ctx, "ls", "-la", dir)
