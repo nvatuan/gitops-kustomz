@@ -83,10 +83,13 @@ func (r *RunnerBase) BuildManifests(beforePath, afterPath string) (*models.Build
 	results := make(map[string]models.BuildEnvManifestResult)
 	envs := r.Options.Environments
 	for _, env := range envs {
+		logger.WithField("env", env).WithField("beforePath", beforePath).Info("Building before manifest...")
 		beforeManifest, err := r.Builder.Build(r.Context, beforePath, env)
 		if err != nil {
 			return nil, err
 		}
+
+		logger.WithField("env", env).WithField("afterPath", afterPath).Info("Building after manifest...")
 		afterManifest, err := r.Builder.Build(r.Context, afterPath, env)
 		if err != nil {
 			return nil, err

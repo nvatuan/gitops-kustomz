@@ -6,7 +6,11 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+
+	log "github.com/sirupsen/logrus"
 )
+
+var logger = log.WithField("package", "kustomize")
 
 const (
 	KUSTOMIZE_BASE_DIR         = "base"
@@ -67,9 +71,9 @@ func (b *Builder) BuildToText(ctx context.Context, path string, overlayName stri
 // Build runs kustomize build on the specified path
 // path here is fullpath to a service (manifestRoot + service)
 func (b *Builder) buildAtPath(ctx context.Context, path string) ([]byte, error) {
+	logger.WithField("path", path).Info("Building at path...")
 	cmd := exec.CommandContext(ctx, "kustomize", "build", path)
 	output, err := cmd.CombinedOutput()
-
 	if err != nil {
 		return nil, fmt.Errorf("kustomize build failed: %w\nOutput: %s", err, string(output))
 	}
