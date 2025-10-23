@@ -59,11 +59,6 @@ func (r *RunnerGitHub) Initialize() error {
 
 // Fetch and set pull request data into struct from GitHub
 func (r *RunnerGitHub) fetchAndSetPullRequestInfo() error {
-	owner, repo, err := github.ParseOwnerRepo(r.options.GhRepo)
-	if err != nil {
-		return fmt.Errorf("failed to parse repository: %w", err)
-	}
-
 	// Create channels for parallel execution
 	type prResult struct {
 		pr  *models.PullRequest
@@ -79,13 +74,13 @@ func (r *RunnerGitHub) fetchAndSetPullRequestInfo() error {
 
 	// Fetch PR info in parallel
 	go func() {
-		pr, err := r.ghclient.GetPR(r.Context, owner, repo, r.options.GhPrNumber)
+		pr, err := r.ghclient.GetPR(r.Context, r.options.GhRepo, r.options.GhPrNumber)
 		prChan <- prResult{pr: pr, err: err}
 	}()
 
 	// Fetch comments in parallel
 	go func() {
-		comments, err := r.ghclient.GetComments(r.Context, owner, repo, r.options.GhPrNumber)
+		comments, err := r.ghclient.GetComments(r.Context, r.options.GhRepo, r.options.GhPrNumber)
 		commentsChan <- commentsResult{comments: comments, err: err}
 	}()
 
@@ -158,7 +153,16 @@ func (r *RunnerGitHub) Process() error {
 	}
 	logger.WithField("results", diffs).Debug("Diffed Manifests")
 
-	policyEval, err := r.Evaluator.GeneratePolicyEvalResultForManifests(r.Context, *rs, []string{})
+	ghComments, err := r.ghclient.GetComments(r.Context, r.options.GhRepo, r.options.GhPrNumber)
+	if err != nil {
+		return fmt.Errorf("failed to get comments: %w", err)
+	}
+	ghCommentStrings := make([]string, len(ghComments))
+	for i, comment := range ghComments {
+		ghCommentStrings[i] = comment.Body
+	}
+
+	policyEval, err := r.Evaluator.GeneratePolicyEvalResultForManifests(r.Context, *rs, ghCommentStrings)
 	if err != nil {
 		return err
 	}
@@ -228,27 +232,22 @@ func (r *RunnerGitHub) outputGitHubComment(data *models.ReportData) error {
 	// Add the comment marker
 	finalComment := template.ToolCommentSignature + "\n\n" + renderedMarkdown
 
-	owner, repo, err := github.ParseOwnerRepo(r.Options.GhRepo)
-	if err != nil {
-		return fmt.Errorf("failed to parse repository: %w", err)
-	}
-
 	// Check if there's an existing comment from this tool
-	existingComment, err := r.ghclient.FindToolComment(r.Context, owner, repo, r.Options.GhPrNumber)
+	existingComment, err := r.ghclient.FindToolComment(r.Context, r.options.GhRepo, r.options.GhPrNumber)
 	if err != nil {
 		logger.WithField("error", err).Warn("Failed to find existing comment, will create new one")
 	}
 
 	if existingComment != nil {
 		// Update existing comment
-		if err := r.ghclient.UpdateComment(r.Context, owner, repo, existingComment.ID, finalComment); err != nil {
+		if err := r.ghclient.UpdateComment(r.Context, r.options.GhRepo, existingComment.ID, finalComment); err != nil {
 			logger.WithField("error", err).Error("Failed to update existing comment")
 			return err
 		}
 		logger.Info("Updated existing GitHub comment")
 	} else {
 		// Create new comment
-		if _, err := r.ghclient.CreateComment(r.Context, owner, repo, r.Options.GhPrNumber, finalComment); err != nil {
+		if _, err := r.ghclient.CreateComment(r.Context, r.options.GhRepo, r.options.GhPrNumber, finalComment); err != nil {
 			logger.WithField("error", err).Error("Failed to create new comment")
 			return err
 		}

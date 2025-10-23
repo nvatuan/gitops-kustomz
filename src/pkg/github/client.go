@@ -21,15 +21,15 @@ const GH_COMMENT_MARKER = template.ToolCommentSignature
 // GitHubClient defines the interface for GitHub API operations
 type GitHubClient interface {
 	// GetPR retrieves pull request information
-	GetPR(ctx context.Context, owner, repo string, number int) (*models.PullRequest, error)
+	GetPR(ctx context.Context, repo string, number int) (*models.PullRequest, error)
 	// CreateComment creates a new comment on a pull request
-	CreateComment(ctx context.Context, owner, repo string, number int, body string) (*models.Comment, error)
+	CreateComment(ctx context.Context, repo string, number int, body string) (*models.Comment, error)
 	// UpdateComment updates an existing comment
-	UpdateComment(ctx context.Context, owner, repo string, commentID int64, body string) error
+	UpdateComment(ctx context.Context, repo string, commentID int64, body string) error
 	// GetComments retrieves all comments for a pull request
-	GetComments(ctx context.Context, owner, repo string, number int) ([]*models.Comment, error)
+	GetComments(ctx context.Context, repo string, number int) ([]*models.Comment, error)
 	// FindToolComment finds an existing tool-generated comment
-	FindToolComment(ctx context.Context, owner, repo string, number int) (*models.Comment, error)
+	FindToolComment(ctx context.Context, repo string, prNumber int) (*models.Comment, error)
 	// SparseCheckoutAtPath clones with treeless and sparse checks out specific ref at path
 	SparseCheckoutAtPath(ctx context.Context, cloneURL, ref, path string) (string, error)
 }
@@ -62,7 +62,11 @@ func NewClient() (*Client, error) {
 }
 
 // GetPR retrieves pull request information
-func (c *Client) GetPR(ctx context.Context, owner, repo string, number int) (*models.PullRequest, error) {
+func (c *Client) GetPR(ctx context.Context, repo string, number int) (*models.PullRequest, error) {
+	owner, repo, err := ParseOwnerRepo(repo)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse repository: %w", err)
+	}
 	pr, _, err := c.client.PullRequests.Get(ctx, owner, repo, number)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get PR: %w", err)
@@ -78,7 +82,11 @@ func (c *Client) GetPR(ctx context.Context, owner, repo string, number int) (*mo
 }
 
 // CreateComment creates a new comment on a pull request
-func (c *Client) CreateComment(ctx context.Context, owner, repo string, number int, body string) (*models.Comment, error) {
+func (c *Client) CreateComment(ctx context.Context, repo string, number int, body string) (*models.Comment, error) {
+	owner, repo, err := ParseOwnerRepo(repo)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse repository: %w", err)
+	}
 	comment := &github.IssueComment{
 		Body: github.String(body),
 	}
@@ -95,7 +103,11 @@ func (c *Client) CreateComment(ctx context.Context, owner, repo string, number i
 }
 
 // UpdateComment updates an existing comment
-func (c *Client) UpdateComment(ctx context.Context, owner, repo string, commentID int64, body string) error {
+func (c *Client) UpdateComment(ctx context.Context, repo string, commentID int64, body string) error {
+	owner, repo, err := ParseOwnerRepo(repo)
+	if err != nil {
+		return fmt.Errorf("failed to parse repository: %w", err)
+	}
 	comment := &github.IssueComment{
 		Body: github.String(body),
 	}
@@ -111,14 +123,18 @@ func (c *Client) UpdateComment(ctx context.Context, owner, repo string, commentI
 
 // GetComments retrieves all comments for a pull request
 // Current limitation it will only fetch first 200 comments, hopefully it contains override messages..
-func (c *Client) GetComments(ctx context.Context, owner, repo string, number int) ([]*models.Comment, error) {
+func (c *Client) GetComments(ctx context.Context, repo string, prNumber int) ([]*models.Comment, error) {
+	owner, repo, err := ParseOwnerRepo(repo)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse repository: %w", err)
+	}
 	opts := &github.IssueListCommentsOptions{
 		ListOptions: github.ListOptions{PerPage: 200},
 	}
 
 	var allComments []*models.Comment
 	for {
-		comments, resp, err := c.client.Issues.ListComments(ctx, owner, repo, number, opts)
+		comments, resp, err := c.client.Issues.ListComments(ctx, owner, repo, prNumber, opts)
 		if err != nil {
 			return nil, fmt.Errorf("failed to get comments: %w", err)
 		}
@@ -141,8 +157,8 @@ func (c *Client) GetComments(ctx context.Context, owner, repo string, number int
 
 // FindToolComment finds an existing tool-generated comment
 // If multiple comments with the same marker exist, returns the latest one (highest ID)
-func (c *Client) FindToolComment(ctx context.Context, owner, repo string, number int) (*models.Comment, error) {
-	comments, err := c.GetComments(ctx, owner, repo, number)
+func (c *Client) FindToolComment(ctx context.Context, repo string, prNumber int) (*models.Comment, error) {
+	comments, err := c.GetComments(ctx, repo, prNumber)
 	if err != nil {
 		return nil, err
 	}
