@@ -167,7 +167,8 @@ func (c *Client) FindToolComment(ctx context.Context, owner, repo string, number
 // 3. git checkout branch
 // 4. return directory
 func (c *Client) SparseCheckoutAtPath(ctx context.Context, repo, branch, path string) (string, error) {
-	checkoutDir := fmt.Sprintf(".gitops-checkout-%s-%d", branch, time.Now().Unix())
+	chkoutName := strings.ReplaceAll(branch, "/", "_")
+	checkoutDir := fmt.Sprintf("tmp-checkout-%s-%d", chkoutName, time.Now().Unix())
 	cloneURL, err := GetCloneURLForRepo(repo)
 	if err != nil {
 		return "", fmt.Errorf("failed to get clone URL: %w", err)

@@ -125,20 +125,26 @@ func (r *RunnerGitHub) Process() error {
 	logger.Info("Process: starting...")
 
 	logger.WithField("repo", r.options.GhRepo).WithField("baseRef", r.prInfo.BaseRef).Info("Sparse checking out manifests")
-	beforePath, err := r.ghclient.SparseCheckoutAtPath(
+	checkoutBeforePath, err := r.ghclient.SparseCheckoutAtPath(
 		r.Context, r.options.GhRepo, r.prInfo.BaseRef, r.options.ManifestsPath)
 	if err != nil {
 		return fmt.Errorf("failed to sparse checkout base commit: %w", err)
 	}
-	beforePath = filepath.Join(beforePath, r.options.ManifestsPath, r.options.Service)
+	defer func() {
+		_ = os.RemoveAll(checkoutBeforePath)
+	}()
+	beforePath := filepath.Join(checkoutBeforePath, r.options.ManifestsPath, r.options.Service)
 
 	logger.WithField("repo", r.options.GhRepo).WithField("headRef", r.prInfo.HeadRef).Info("Sparse checking out manifests")
-	afterPath, err := r.ghclient.SparseCheckoutAtPath(
+	checkoutAfterPath, err := r.ghclient.SparseCheckoutAtPath(
 		r.Context, r.options.GhRepo, r.prInfo.HeadRef, r.options.ManifestsPath)
 	if err != nil {
 		return fmt.Errorf("failed to sparse checkout head commit: %w", err)
 	}
-	afterPath = filepath.Join(afterPath, r.options.ManifestsPath, r.options.Service)
+	defer func() {
+		_ = os.RemoveAll(checkoutAfterPath)
+	}()
+	afterPath := filepath.Join(checkoutAfterPath, r.options.ManifestsPath, r.options.Service)
 
 	rs, err := r.BuildManifests(beforePath, afterPath)
 	if err != nil {
