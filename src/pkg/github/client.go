@@ -238,15 +238,17 @@ func (c *Client) SparseCheckoutAtPath(ctx context.Context, repo, branch, path st
 		return "", fmt.Errorf("failed to get absolute path: %w", err)
 	}
 
-	// list files in the following directory [pwd, tmpdir, checkoutDir]
+	// list files with permissions in the following directory [pwd, tmpdir, checkoutDir]
 	logger.Info("DEBUGGING: LISTING FILES IN THE FOLLOWING DIRECTORIES [pwd, tmpdir, checkoutDir]")
 	dirs := []string{pwd, tmpdir, checkoutDir}
 	for _, dir := range dirs {
-		files, err := os.ReadDir(dir)
+		logger.WithField("dir", dir).Info("Started list ls -la...")
+		lsCmd := exec.CommandContext(ctx, "ls", "-la", dir)
+		output, err := lsCmd.CombinedOutput()
 		if err != nil {
-			return "", fmt.Errorf("failed to read directory: %w", err)
+			return "", fmt.Errorf("failed to list directory %s: %w\nOutput: %s", dir, err, string(output))
 		}
-		logger.WithField("dir", dir).WithField("files", files).Info("Listed directory...")
+		logger.WithField("dir", dir).WithField("output", string(output)).Info("Listed directory...")
 	}
 
 	return absPath, nil
