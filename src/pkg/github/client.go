@@ -12,6 +12,7 @@ import (
 	"github.com/gh-nvat/gitops-kustomz/src/pkg/models"
 	"github.com/gh-nvat/gitops-kustomz/src/pkg/template"
 	"github.com/google/go-github/v66/github"
+	log "github.com/sirupsen/logrus"
 	"golang.org/x/oauth2"
 )
 
@@ -99,7 +100,8 @@ func (c *Client) UpdateComment(ctx context.Context, owner, repo string, commentI
 		Body: github.String(body),
 	}
 
-	_, _, err := c.client.Issues.EditComment(ctx, owner, repo, commentID, comment)
+	commentRes, res, err := c.client.Issues.EditComment(ctx, owner, repo, commentID, comment)
+	log.WithField("comment", commentRes).WithField("response", res).Debug("Updated comment")
 	if err != nil {
 		return fmt.Errorf("failed to update comment: %w", err)
 	}

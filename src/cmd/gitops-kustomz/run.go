@@ -69,7 +69,9 @@ func initialize(ctx context.Context, opts *runner.Options) (runner.RunnerInterfa
 
 func run(ctx context.Context, opts *runner.Options) error {
 	logger.WithField("opts", opts).Info("Running..")
-	log.SetLevel(log.DebugLevel)
+	if opts.Debug {
+		log.SetLevel(log.DebugLevel)
+	}
 
 	// Validate options
 	if err := validateOptions(opts); err != nil {

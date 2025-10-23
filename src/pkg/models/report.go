@@ -50,6 +50,17 @@ type PolicyCounts struct {
 	Success int `json:"success"`
 	Failed  int `json:"failed"`
 	Omitted int `json:"omitted"`
+
+	BlockingSuccessCount    int `json:"blockingSuccessCount"`
+	BlockingFailedCount     int `json:"blockingFailedCount"`
+	WarningSuccessCount     int `json:"warningSuccessCount"`
+	WarningFailedCount      int `json:"warningFailedCount"`
+	RecommendSuccessCount   int `json:"recommendSuccessCount"`
+	RecommendFailedCount    int `json:"recommendFailedCount"`
+	OmittedSuccessCount     int `json:"omittedSuccessCount"`
+	OmittedFailedCount      int `json:"omittedFailedCount"`
+	NotInEffectSuccessCount int `json:"notInEffectSuccessCount"`
+	NotInEffectFailedCount  int `json:"notInEffectFailedCount"`
 }
 
 // PolicyMatrix represents the detailed policy evaluation matrix

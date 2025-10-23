@@ -199,12 +199,15 @@ func (e *PolicyEvaluator) GeneratePolicyEvalResultForManifests(
 	*models.PolicyEvaluation,
 	error,
 ) {
+	logger.Info("GeneratePolicyEvalResultForManifests: starting...")
+
 	envToPolicyIdToResult := make(map[string]map[string]models.PolicyResult)
 	envManifests := build.EnvManifestBuild
 
 	// 1. Evaluate policies for each environment and store results (can goroutine)
 	complianceCfg := e.data.ComplianceConfig
 	for env, manifest := range envManifests {
+		logger.WithField("env", env).Info("Evaluating policies for environment")
 		policyIdToResult := make(map[string]models.PolicyResult)
 
 		failMsgs, err := e.Evaluate(ctx, manifest.AfterManifest)
@@ -213,6 +216,7 @@ func (e *PolicyEvaluator) GeneratePolicyEvalResultForManifests(
 		}
 
 		for policyId, failMsgs := range failMsgs {
+			logger.WithField("policyId", policyId).WithField("failMsgs", failMsgs).Debug("Evaluated policy")
 			policy := complianceCfg.Policies[policyId]
 			polResult := models.PolicyResult{
 				PolicyId:     policyId,
@@ -238,8 +242,11 @@ func (e *PolicyEvaluator) GeneratePolicyEvalResultForManifests(
 		PolicyMatrix:       make(map[string]models.PolicyMatrix),
 	}
 	for env := range envManifests {
+		logger.WithField("env", env).Info("Crafting policy evaluation for environment")
+
 		totalCnt, failedCnt, omittedCnt, successCnt := 0, 0, 0, 0
-		blockingFailedCnt, warningFailedCnt, recommendFailedCnt := 0, 0, 0
+		blockingSuccessCnt, warningSuccessCnt, recommendSuccessCnt, overriddenSuccessCnt, notInEffectSuccessCnt := 0, 0, 0, 0, 0
+		blockingFailedCnt, warningFailedCnt, recommendFailedCnt, overriddenFailedCnt, notInEffectFailedCnt := 0, 0, 0, 0, 0
 
 		var blockingPolicies, warningPolicies, recommendPolicies, overriddenPolicies, notInEffectPolicies []models.PolicyResult
 		for policyId, result := range envToPolicyIdToResult[env] {
@@ -255,28 +262,40 @@ func (e *PolicyEvaluator) GeneratePolicyEvalResultForManifests(
 				if !result.IsPassing {
 					blockingFailedCnt++
 					failedCnt++
+				} else {
+					blockingSuccessCnt++
 				}
 			case POLICY_LEVEL_WARNING:
 				warningPolicies = append(warningPolicies, result)
 				if !result.IsPassing {
 					warningFailedCnt++
 					failedCnt++
+				} else {
+					warningSuccessCnt++
 				}
 			case POLICY_LEVEL_RECOMMEND:
 				recommendPolicies = append(recommendPolicies, result)
 				if !result.IsPassing {
 					recommendFailedCnt++
 					failedCnt++
+				} else {
+					recommendSuccessCnt++
 				}
 			case POLICY_LEVEL_OVERRIDE:
 				overriddenPolicies = append(overriddenPolicies, result)
 				if !result.IsPassing {
+					overriddenFailedCnt++
 					omittedCnt++
+				} else {
+					overriddenSuccessCnt++
 				}
 			case POLICY_LEVEL_NOT_IN_EFFECT:
 				notInEffectPolicies = append(notInEffectPolicies, result)
 				if !result.IsPassing {
+					notInEffectFailedCnt++
 					omittedCnt++
+				} else {
+					notInEffectSuccessCnt++
 				}
 			case POLICY_LEVEL_UNKNOWN:
 				logger.Warnf("policy %s: unknown enforcement level: %s", policyId, enforcementLevel)
@@ -301,6 +320,17 @@ func (e *PolicyEvaluator) GeneratePolicyEvalResultForManifests(
 				Success: successCnt,
 				Failed:  failedCnt,
 				Omitted: omittedCnt,
+
+				BlockingSuccessCount:    blockingSuccessCnt,
+				BlockingFailedCount:     blockingFailedCnt,
+				WarningSuccessCount:     warningSuccessCnt,
+				WarningFailedCount:      warningFailedCnt,
+				RecommendSuccessCount:   recommendSuccessCnt,
+				RecommendFailedCount:    recommendFailedCnt,
+				OmittedSuccessCount:     overriddenSuccessCnt,
+				OmittedFailedCount:      overriddenFailedCnt,
+				NotInEffectSuccessCount: notInEffectSuccessCnt,
+				NotInEffectFailedCount:  notInEffectFailedCnt,
 			},
 		}
 	}
@@ -369,7 +399,7 @@ func (e *PolicyEvaluator) evaluatePolicyWithConftest(
 
 	// If policy eval not passing, the program exit with code 1, we will omit error here
 	outputBytes, _ := cmd.CombinedOutput()
-	logger.Infof("conftest output: %s", string(outputBytes))
+	logger.Debugf("conftest output: %s", string(outputBytes))
 
 	// Sample conftest output
 	// 	[

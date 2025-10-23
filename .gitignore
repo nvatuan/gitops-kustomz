@@ -1,5 +1,7 @@
 TODO
 
+.gitops-checkout-*
+
 # Binaries for programs and plugins
 *.exe
 *.exe~

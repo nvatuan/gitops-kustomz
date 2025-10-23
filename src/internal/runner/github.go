@@ -54,7 +54,7 @@ func (r *RunnerGitHub) Initialize() error {
 	if err := r.fetchAndSetPullRequestInfo(); err != nil {
 		return fmt.Errorf("failed to fetch pull request info: %w", err)
 	}
-	return nil
+	return r.RunnerBase.Initialize()
 }
 
 // Fetch and set pull request data into struct from GitHub
@@ -124,16 +124,21 @@ func (r *RunnerGitHub) DiffManifests(result *models.BuildManifestResult) (map[st
 func (r *RunnerGitHub) Process() error {
 	logger.Info("Process: starting...")
 
+	logger.WithField("repo", r.options.GhRepo).WithField("baseRef", r.prInfo.BaseRef).Info("Sparse checking out manifests")
 	beforePath, err := r.ghclient.SparseCheckoutAtPath(
 		r.Context, r.options.GhRepo, r.prInfo.BaseRef, r.options.ManifestsPath)
 	if err != nil {
 		return fmt.Errorf("failed to sparse checkout base commit: %w", err)
 	}
+	beforePath = filepath.Join(beforePath, r.options.ManifestsPath, r.options.Service)
+
+	logger.WithField("repo", r.options.GhRepo).WithField("headRef", r.prInfo.HeadRef).Info("Sparse checking out manifests")
 	afterPath, err := r.ghclient.SparseCheckoutAtPath(
 		r.Context, r.options.GhRepo, r.prInfo.HeadRef, r.options.ManifestsPath)
 	if err != nil {
 		return fmt.Errorf("failed to sparse checkout head commit: %w", err)
 	}
+	afterPath = filepath.Join(afterPath, r.options.ManifestsPath, r.options.Service)
 
 	rs, err := r.BuildManifests(beforePath, afterPath)
 	if err != nil {
@@ -174,9 +179,6 @@ func (r *RunnerGitHub) Output(data *models.ReportData) error {
 	if err := r.outputReportJson(data); err != nil {
 		return err
 	}
-	if err := r.outputReportMarkdown(data); err != nil {
-		return err
-	}
 	if err := r.outputGitHubComment(data); err != nil {
 		return err
 	}
@@ -205,28 +207,6 @@ func (r *RunnerGitHub) outputReportJson(data *models.ReportData) error {
 	return nil
 }
 
-// Exporting report markdown file to output directory
-func (r *RunnerGitHub) outputReportMarkdown(data *models.ReportData) error {
-	logger.Info("OutputMarkdown: starting...")
-
-	// Render the markdown using templates
-	renderedMarkdown, err := r.Renderer.RenderWithTemplates(r.Options.TemplatesPath, data)
-	if err != nil {
-		logger.WithField("error", err).Error("Failed to render markdown template")
-		return err
-	}
-
-	// Write the rendered markdown to file
-	filePath := filepath.Join(r.Options.OutputDir, "report.md")
-	if err := os.WriteFile(filePath, []byte(renderedMarkdown), 0644); err != nil {
-		logger.WithField("filePath", filePath).WithField("error", err).Error("Failed to write markdown report to file")
-		return err
-	}
-
-	logger.WithField("filePath", filePath).Info("Written markdown report to file")
-	return nil
-}
-
 // Post comment to GitHub PR
 func (r *RunnerGitHub) outputGitHubComment(data *models.ReportData) error {
 	logger.Info("OutputGitHubComment: starting...")
@@ -237,6 +217,7 @@ func (r *RunnerGitHub) outputGitHubComment(data *models.ReportData) error {
 		logger.WithField("error", err).Error("Failed to render markdown template")
 		return err
 	}
+	logger.WithField("renderedMarkdown", renderedMarkdown).Debug("Rendered markdown")
 
 	// Add the comment marker
 	finalComment := template.ToolCommentSignature + "\n\n" + renderedMarkdown

@@ -43,13 +43,13 @@ func (r *Renderer) RenderWithTemplates(templateDir string, data interface{}) (st
 
 	// Check if all templates exist - fail fast if any are missing
 	if _, err := os.Stat(commentPath); err != nil {
-		return "", fmt.Errorf("comment template not found at %s: %w (hint: use default template by not specifying --templates-path)", commentPath, err)
+		return "", fmt.Errorf("comment template not found at %s: %w", commentPath, err)
 	}
 	if _, err := os.Stat(diffPath); err != nil {
-		return "", fmt.Errorf("diff template not found at %s: %w (hint: use default template by not specifying --templates-path)", diffPath, err)
+		return "", fmt.Errorf("diff template not found at %s: %w", diffPath, err)
 	}
 	if _, err := os.Stat(policyPath); err != nil {
-		return "", fmt.Errorf("policy template not found at %s: %w (hint: use default template by not specifying --templates-path)", policyPath, err)
+		return "", fmt.Errorf("policy template not found at %s: %w", policyPath, err)
 	}
 
 	// Parse all templates with named templates

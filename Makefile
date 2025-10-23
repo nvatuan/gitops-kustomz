@@ -71,6 +71,26 @@ run-local: build
 	@echo "📄 Reports generated:"
 	@ls -lh test/output/*.md
 
+run-github: build
+	# if [[ "${GH_TOKEN}" == "" ]]; then
+	# 	echo "GH_TOKEN is not set"
+	# 	exit 1
+	# fi
+
+	${BIN_DIR}/${BINARY_NAME} --run-mode github \
+		--environments stg,prod \
+		--service my-app \
+		--gh-repo nvatuan/my-ideal-gitops-policy-ci-flow \
+		--gh-pr-number 5 \
+		--enable-export-report true \
+		--output-dir test/output \
+		--manifests-path manifests/services \
+		--templates-path test/local/templates \
+		--policies-path test/local/policies \
+	@echo ""
+	@echo "📄 Reports generated:"
+	@ls -lh test/output/*.md
+
 # OPA policy tests
 test-policies:
 	opa test sample/policies/*.opa
