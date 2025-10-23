@@ -27,25 +27,25 @@
 {{- if gt .PolicyEvaluation.EnvironmentSummary.stg.PolicyCounts.BlockingFailedCount 0 }}
 
 {{range $policy := .PolicyEvaluation.PolicyMatrix.stg.BlockingPolicies}}
-Policy `{{$policy.PolicyName}}` failed with the following messages:
-{{range $msg := $policy.FailMessages}}* {{$msg}}
+* Policy `{{$policy.PolicyName}}` failed with the following messages:
+{{range $msg := $policy.FailMessages}}  * {{$msg}}
 {{end}}
 {{end}}
 
 {{else}}
-None! 🙌
+* None! 🙌
 {{end}}
 
 {{- if gt .PolicyEvaluation.EnvironmentSummary.prod.PolicyCounts.BlockingFailedCount 0 }}
 ##### [`prod`] environment 
 
 {{range $policy := .PolicyEvaluation.PolicyMatrix.prod.BlockingPolicies}}
-Policy `{{$policy.PolicyName}}` failed with the following messages:
-{{range $msg := $policy.FailMessages}}* {{$msg}}
+* Policy `{{$policy.PolicyName}}` failed with the following messages:
+{{range $msg := $policy.FailMessages}}  * {{$msg}}
 {{end}}
 {{end}}
 {{else}}
-None! 🙌
+* None! 🙌
 {{end}}
 
 #### ⚠️ WARNING Policies | {{range $env, $sum := .PolicyEvaluation.EnvironmentSummary}} `{{$env}}`: `{{$sum.PolicyCounts.WarningFailedCount}}`❌ |{{end}}
@@ -54,24 +54,24 @@ None! 🙌
 ##### [`stg`] environment 
 
 {{range $policy := .PolicyEvaluation.PolicyMatrix.stg.WarningPolicies}}
-Policy `{{$policy.PolicyName}}` failed with the following messages:
-{{range $msg := $policy.FailMessages}}* {{$msg}}
+* Policy `{{$policy.PolicyName}}` failed with the following messages:
+{{range $msg := $policy.FailMessages}}  * {{$msg}}
 {{end}}
 {{end}}
 {{else}}
-None! 🙌
+* None! 🙌
 {{end}}
 
 {{- if gt .PolicyEvaluation.EnvironmentSummary.prod.PolicyCounts.WarningFailedCount 0 }}
 ##### [`prod`] environment 
 
 {{range $policy := .PolicyEvaluation.PolicyMatrix.prod.WarningPolicies}}
-Policy `{{$policy.PolicyName}}` failed with the following messages:
-{{range $msg := $policy.FailMessages}}* {{$msg}}
+* Policy `{{$policy.PolicyName}}` failed with the following messages:
+{{range $msg := $policy.FailMessages}}  * {{$msg}}
 {{end}}
 {{end}}
 {{else}}
-None! 🙌
+* None! 🙌
 {{end}}
 
 #### 💡 RECOMMEND Policies | {{range $env, $sum := .PolicyEvaluation.EnvironmentSummary}} `{{$env}}`: `{{$sum.PolicyCounts.RecommendFailedCount}}`❌ |{{end}}
@@ -80,12 +80,12 @@ None! 🙌
 ##### [`stg`] environment 
 
 {{range $policy := .PolicyEvaluation.PolicyMatrix.stg.RecommendPolicies}}
-Policy `{{$policy.PolicyName}}` failed with the following messages:
-{{range $msg := $policy.FailMessages}}* {{$msg}}
+* Policy `{{$policy.PolicyName}}` failed with the following messages:
+{{range $msg := $policy.FailMessages}}  * {{$msg}}
 {{end}}
 {{end}}
 {{else}}
-None! 🙌
+* None! 🙌
 {{end}}
 
 ##### [`prod`] environment 
@@ -93,12 +93,12 @@ None! 🙌
 {{- if gt .PolicyEvaluation.EnvironmentSummary.prod.PolicyCounts.RecommendFailedCount 0 }}
 
 {{range $policy := .PolicyEvaluation.PolicyMatrix.prod.RecommendPolicies}}
-Policy `{{$policy.PolicyName}}` failed with the following messages:
-{{range $msg := $policy.FailMessages}}* {{$msg}}
+* Policy `{{$policy.PolicyName}}` failed with the following messages:
+{{range $msg := $policy.FailMessages}}  * {{$msg}}
 {{end}}
 {{end}}
 {{else}}
-None! 🙌
+* None! 🙌
 {{end}}
 
 #### ⏭️ Omitted Policies | {{range $env, $sum := .PolicyEvaluation.EnvironmentSummary}} `{{$env}}`: `{{$sum.PolicyCounts.OmittedFailedCount}}`❌ |{{end}}
@@ -108,19 +108,19 @@ None! 🙌
 {{- if gt .PolicyEvaluation.EnvironmentSummary.stg.PolicyCounts.OmittedFailedCount 0 }}
 
 {{range $policy := .PolicyEvaluation.PolicyMatrix.stg.OverriddenPolicies}}
-Policy `{{$policy.PolicyName}}` failed with the following messages:
-{{range $msg := $policy.FailMessages}}* {{$msg}}
+* Policy `{{$policy.PolicyName}}` failed with the following messages:
+{{range $msg := $policy.FailMessages}}  * {{$msg}}
 {{end}}
 {{end}}
 
 {{range $policy := .PolicyEvaluation.PolicyMatrix.stg.NotInEffectPolicies}}
-Policy `{{$policy.PolicyName}}` failed with the following messages:
-{{range $msg := $policy.FailMessages}}* {{$msg}}
+* Policy `{{$policy.PolicyName}}` failed with the following messages:
+{{range $msg := $policy.FailMessages}}  * {{$msg}}
 {{end}}
 {{end}}
 
 {{else}}
-None! 🙌
+* None! 🙌
 {{end}}
 
 ##### [`prod`] environment 
@@ -128,19 +128,19 @@ None! 🙌
 {{- if gt .PolicyEvaluation.EnvironmentSummary.prod.PolicyCounts.OmittedFailedCount 0 }}
 
 {{range $policy := .PolicyEvaluation.PolicyMatrix.prod.OverriddenPolicies}}
-Policy `{{$policy.PolicyName}}` failed with the following messages:
-{{range $msg := $policy.FailMessages}}* {{$msg}}
+* Policy `{{$policy.PolicyName}}` failed with the following messages:
+{{range $msg := $policy.FailMessages}}  * {{$msg}}
 {{end}}
 {{end}}
 
 {{range $policy := .PolicyEvaluation.PolicyMatrix.prod.NotInEffectPolicies}}
-Policy `{{$policy.PolicyName}}` failed with the following messages:
-{{range $msg := $policy.FailMessages}}* {{$msg}}
+* Policy `{{$policy.PolicyName}}` failed with the following messages:
+{{range $msg := $policy.FailMessages}}  * {{$msg}}
 {{end}}
 {{end}}
 
 {{else}}
-None! 🙌
+* None! 🙌
 {{end}}
 
 </details>
