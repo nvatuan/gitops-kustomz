@@ -187,45 +187,51 @@ func (c *Client) FindToolComment(ctx context.Context, repo string, prNumber int)
 func (c *Client) SparseCheckoutAtPath(ctx context.Context, repo, branch, path string) (string, error) {
 	logger.WithField("repo", repo).WithField("branch", branch).WithField("path", path).Info("Sparse checking out at path")
 
-	cwd, err := os.Getwd()
+	// create /tmp at pwd if not exists
+	pwd, err := os.Getwd()
 	if err != nil {
-		return "", fmt.Errorf("failed to get working directory: %w", err)
+		return "", fmt.Errorf("failed to get pwd: %w", err)
+	}
+	tmpdir := filepath.Join(pwd, "tmp")
+	if err := os.MkdirAll(tmpdir, 0755); err != nil {
+		return "", fmt.Errorf("failed to create tmpdir at %s: %w", tmpdir, err)
 	}
 
 	chkoutName := strings.ReplaceAll(branch, "/", "_")
-	checkoutDir := filepath.Join(cwd, fmt.Sprintf("tmp-checkout-%s-%d", chkoutName, time.Now().Unix()))
+	checkoutDir := fmt.Sprintf("chk-%s-%d", chkoutName, time.Now().Unix())
 	cloneURL, err := GetCloneURLForRepo(repo)
 	if err != nil {
 		return "", fmt.Errorf("failed to get clone URL: %w", err)
 	}
 
 	// 1. git clone --filter=blob:none --depth 1 --no-checkout --single-branch -b branch cloneURL directory
-	logger.WithField("checkoutDir", checkoutDir).Info("Cloning...")
+	logger.WithField("tmpdir", tmpdir).WithField("checkoutDir", checkoutDir).Info("Cloning...")
 	cloneCmd := exec.CommandContext(ctx, "git", "clone", "--filter=blob:none", "--depth", "1", "--no-checkout", "--single-branch", "-b", branch, cloneURL, checkoutDir)
+	cloneCmd.Dir = tmpdir
 	if err := cloneCmd.Run(); err != nil {
 		return "", fmt.Errorf("failed to clone: %w", err)
 	}
 
 	// 2. git sparse-checkout set --no-cone path
-	logger.WithField("checkoutDir", checkoutDir).Info("Checking out path...")
+	logger.WithField("tmpdir", tmpdir).WithField("checkoutDir", checkoutDir).Info("Set path sparse-checkout...")
 	sparseCmd := exec.CommandContext(ctx, "git", "sparse-checkout", "set", "--no-cone", path)
-	sparseCmd.Dir = checkoutDir
+	sparseCmd.Dir = filepath.Join(tmpdir, checkoutDir)
 	if err := sparseCmd.Run(); err != nil {
 		_ = os.RemoveAll(checkoutDir)
 		return "", fmt.Errorf("failed to set sparse checkout: %w", err)
 	}
 
 	// 3. git checkout branch
-	logger.WithField("checkoutDir", checkoutDir).Info("Checking out branch...")
+	logger.WithField("tmpdir", tmpdir).WithField("branch", branch).WithField("checkoutDir", checkoutDir).Info("Check out branch...")
 	checkoutCmd := exec.CommandContext(ctx, "git", "checkout", branch)
-	checkoutCmd.Dir = checkoutDir
+	checkoutCmd.Dir = filepath.Join(tmpdir, checkoutDir)
 	if err := checkoutCmd.Run(); err != nil {
 		_ = os.RemoveAll(checkoutDir)
 		return "", fmt.Errorf("failed to checkout: %w", err)
 	}
 
 	// 4. return directory
-	absPath, err := filepath.Abs(checkoutDir)
+	absPath, err := filepath.Abs(filepath.Join(tmpdir, checkoutDir))
 	logger.WithField("checkoutDir", checkoutDir).WithField("absPath", absPath).Info("Absolute path...")
 	if err != nil {
 		_ = os.RemoveAll(checkoutDir)

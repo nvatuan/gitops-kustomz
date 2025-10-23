@@ -3,6 +3,7 @@ package runner
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 	"time"
@@ -109,6 +110,10 @@ func (r *RunnerLocal) outputReportJson(data *models.ReportData) error {
 		return nil
 	}
 	logger.Info("OutputJson: starting...")
+
+	if err := os.MkdirAll(r.Options.OutputDir, 0755); err != nil {
+		return fmt.Errorf("failed to create output directory: %w", err)
+	}
 
 	resultsJson, err := json.Marshal(data)
 	if err != nil {
