@@ -4,7 +4,10 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"os/exec"
+	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/gh-nvat/gitops-kustomz/src/pkg/models"
 	"github.com/gh-nvat/gitops-kustomz/src/pkg/template"
@@ -26,6 +29,8 @@ type GitHubClient interface {
 	GetComments(ctx context.Context, owner, repo string, number int) ([]*models.Comment, error)
 	// FindToolComment finds an existing tool-generated comment
 	FindToolComment(ctx context.Context, owner, repo string, number int) (*models.Comment, error)
+	// SparseCheckoutAtPath clones with treeless and sparse checks out specific ref at path
+	SparseCheckoutAtPath(ctx context.Context, cloneURL, ref, path string) (string, error)
 }
 
 // Client handles GitHub API interactions using go-github
@@ -150,4 +155,49 @@ func (c *Client) FindToolComment(ctx context.Context, owner, repo string, number
 	}
 
 	return latestComment, nil // Returns nil if not found
+}
+
+// SparseCheckoutAtPath clones with treeless and sparse checks out specific ref at path
+// returns the directory containing the checked out files
+// It does the following commands:
+// 1. git clone --filter=blob:none --depth 1 --no-checkout --single-branch -b branch cloneURL directory
+// 2. git sparse-checkout set --no-cone path
+// 3. git checkout branch
+// 4. return directory
+func (c *Client) SparseCheckoutAtPath(ctx context.Context, repo, branch, path string) (string, error) {
+	checkoutDir := fmt.Sprintf(".gitops-checkout-%s-%d", branch, time.Now().Unix())
+	cloneURL, err := GetCloneURLForRepo(repo)
+	if err != nil {
+		return "", fmt.Errorf("failed to get clone URL: %w", err)
+	}
+
+	// 1. git clone --filter=blob:none --depth 1 --no-checkout --single-branch -b branch cloneURL directory
+	cloneCmd := exec.CommandContext(ctx, "git", "clone", "--filter=blob:none", "--depth", "1", "--no-checkout", "--single-branch", "-b", branch, cloneURL, checkoutDir)
+	if err := cloneCmd.Run(); err != nil {
+		return "", fmt.Errorf("failed to clone: %w", err)
+	}
+
+	// 2. git sparse-checkout set --no-cone path
+	sparseCmd := exec.CommandContext(ctx, "git", "sparse-checkout", "set", "--no-cone", path)
+	sparseCmd.Dir = checkoutDir
+	if err := sparseCmd.Run(); err != nil {
+		_ = os.RemoveAll(checkoutDir)
+		return "", fmt.Errorf("failed to set sparse checkout: %w", err)
+	}
+
+	// 3. git checkout branch
+	checkoutCmd := exec.CommandContext(ctx, "git", "checkout", branch)
+	checkoutCmd.Dir = checkoutDir
+	if err := checkoutCmd.Run(); err != nil {
+		_ = os.RemoveAll(checkoutDir)
+		return "", fmt.Errorf("failed to checkout: %w", err)
+	}
+
+	// 4. return directory
+	absPath, err := filepath.Abs(checkoutDir)
+	if err != nil {
+		_ = os.RemoveAll(checkoutDir)
+		return "", fmt.Errorf("failed to get absolute path: %w", err)
+	}
+	return absPath, nil
 }

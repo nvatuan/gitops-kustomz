@@ -113,8 +113,8 @@ func (r *RunnerGitHub) fetchAndSetPullRequestInfo() error {
 	return nil
 }
 
-func (r *RunnerGitHub) BuildManifests() (*models.BuildManifestResult, error) {
-	return r.RunnerBase.BuildManifests()
+func (r *RunnerGitHub) BuildManifests(beforePath, afterPath string) (*models.BuildManifestResult, error) {
+	return r.RunnerBase.BuildManifests(beforePath, afterPath)
 }
 
 func (r *RunnerGitHub) DiffManifests(result *models.BuildManifestResult) (map[string]models.EnvironmentDiff, error) {
@@ -124,7 +124,18 @@ func (r *RunnerGitHub) DiffManifests(result *models.BuildManifestResult) (map[st
 func (r *RunnerGitHub) Process() error {
 	logger.Info("Process: starting...")
 
-	rs, err := r.BuildManifests()
+	beforePath, err := r.ghclient.SparseCheckoutAtPath(
+		r.Context, r.options.GhRepo, r.prInfo.BaseRef, r.options.ManifestsPath)
+	if err != nil {
+		return fmt.Errorf("failed to sparse checkout base commit: %w", err)
+	}
+	afterPath, err := r.ghclient.SparseCheckoutAtPath(
+		r.Context, r.options.GhRepo, r.prInfo.HeadRef, r.options.ManifestsPath)
+	if err != nil {
+		return fmt.Errorf("failed to sparse checkout head commit: %w", err)
+	}
+
+	rs, err := r.BuildManifests(beforePath, afterPath)
 	if err != nil {
 		return err
 	}

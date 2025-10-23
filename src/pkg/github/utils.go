@@ -24,3 +24,11 @@ func ShortSHA(sha string) string {
 	}
 	return sha
 }
+
+func GetCloneURLForRepo(repo string) (string, error) {
+	owner, repo, err := ParseOwnerRepo(repo)
+	if err != nil {
+		return "", fmt.Errorf("failed to parse repository: %w", err)
+	}
+	return fmt.Sprintf("https://github.com/%s/%s.git", owner, repo), nil
+}
