@@ -205,7 +205,7 @@ func (c *Client) SparseCheckoutAtPath(ctx context.Context, repo, branch, path st
 	}
 
 	// 1. git clone --filter=blob:none --depth 1 --no-checkout --single-branch -b branch cloneURL directory
-	logger.WithField("tmpdir", tmpdir).WithField("checkoutDir", checkoutDir).Info("Cloning...")
+	logger.WithField("tmpdir", tmpdir).WithField("checkoutDir", checkoutDir).Debug("Cloning...")
 	cloneCmd := exec.CommandContext(ctx, "git", "clone", "--filter=blob:none", "--depth", "1", "--no-checkout", "--single-branch", "-b", branch, cloneURL, checkoutDir)
 	cloneCmd.Dir = tmpdir
 	if err := cloneCmd.Run(); err != nil {
@@ -213,7 +213,7 @@ func (c *Client) SparseCheckoutAtPath(ctx context.Context, repo, branch, path st
 	}
 
 	// 2. git sparse-checkout set --no-cone path
-	logger.WithField("tmpdir", tmpdir).WithField("checkoutDir", checkoutDir).Info("Set path sparse-checkout...")
+	logger.WithField("tmpdir", tmpdir).WithField("checkoutDir", checkoutDir).Debug("Set path sparse-checkout...")
 	sparseCmd := exec.CommandContext(ctx, "git", "sparse-checkout", "set", "--no-cone", path)
 	sparseCmd.Dir = filepath.Join(tmpdir, checkoutDir)
 	if err := sparseCmd.Run(); err != nil {
@@ -222,7 +222,7 @@ func (c *Client) SparseCheckoutAtPath(ctx context.Context, repo, branch, path st
 	}
 
 	// 3. git checkout branch
-	logger.WithField("tmpdir", tmpdir).WithField("branch", branch).WithField("checkoutDir", checkoutDir).Info("Check out branch...")
+	logger.WithField("tmpdir", tmpdir).WithField("branch", branch).WithField("checkoutDir", checkoutDir).Debug("Check out branch...")
 	checkoutCmd := exec.CommandContext(ctx, "git", "checkout", branch)
 	checkoutCmd.Dir = filepath.Join(tmpdir, checkoutDir)
 	if err := checkoutCmd.Run(); err != nil {
@@ -232,24 +232,25 @@ func (c *Client) SparseCheckoutAtPath(ctx context.Context, repo, branch, path st
 
 	// 4. return directory
 	absPath, err := filepath.Abs(filepath.Join(tmpdir, checkoutDir))
-	logger.WithField("checkoutDir", checkoutDir).WithField("absPath", absPath).Info("Absolute path...")
+	logger.WithField("checkoutDir", checkoutDir).WithField("absPath", absPath).Debug("Absolute path...")
 	if err != nil {
 		_ = os.RemoveAll(checkoutDir)
 		return "", fmt.Errorf("failed to get absolute path: %w", err)
 	}
 
+	// // this spots the case that --manfifest-path has a ./ prefix didn't work
 	// list files with permissions in the following directory [pwd, tmpdir, checkoutDir]
-	logger.Info("DEBUGGING: LISTING FILES IN THE FOLLOWING DIRECTORIES [pwd, tmpdir, absPath]")
-	dirs := []string{pwd, tmpdir, absPath}
-	for _, dir := range dirs {
-		logger.WithField("dir", dir).Info("Started list ls -la...")
-		lsCmd := exec.CommandContext(ctx, "ls", "-la", dir)
-		output, err := lsCmd.CombinedOutput()
-		if err != nil {
-			return "", fmt.Errorf("failed to list directory %s: %w\nOutput: %s", dir, err, string(output))
-		}
-		logger.WithField("dir", dir).WithField("output", string(output)).Info("Listed directory...")
-	}
+	// logger.Info("DEBUGGING: LISTING FILES IN THE FOLLOWING DIRECTORIES [pwd, tmpdir, absPath]")
+	// dirs := []string{pwd, tmpdir, absPath}
+	// for _, dir := range dirs {
+	// 	logger.WithField("dir", dir).Debug("Started list ls -la...")
+	// 	lsCmd := exec.CommandContext(ctx, "ls", "-la", dir)
+	// 	output, err := lsCmd.CombinedOutput()
+	// 	if err != nil {
+	// 		return "", fmt.Errorf("failed to list directory %s: %w\nOutput: %s", dir, err, string(output))
+	// 	}
+	// 	logger.WithField("dir", dir).WithField("output", string(output)).Debug("Listed directory...")
+	// }
 
 	return absPath, nil
 }
