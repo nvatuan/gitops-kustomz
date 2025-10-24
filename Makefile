@@ -79,14 +79,15 @@ run-github: build
 
 	${BIN_DIR}/${BINARY_NAME} --run-mode github \
 		--environments stg,prod \
-		--service my-app \
-		--gh-repo nvatuan/my-ideal-gitops-policy-ci-flow \
-		--gh-pr-number 5 \
+		--service app-bootstrap-touya \
+		--gh-repo moneyforward/tmp-clone_k8s-service-manifests \
+		--gh-pr-number 1 \
 		--enable-export-report true \
 		--output-dir test/output \
-		--manifests-path manifests/services \
+		--manifests-path services \
 		--templates-path test/local/templates \
 		--policies-path test/local/policies \
+		--debug true;
 	@echo ""
 	@echo "📄 Reports generated:"
 	@ls -lh test/output/*.md
