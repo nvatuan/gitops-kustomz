@@ -200,7 +200,7 @@ func (c *Client) SparseCheckoutAtPath(ctx context.Context, repo, branch, path st
 
 	chkoutName := strings.ReplaceAll(branch, "/", "_")
 	checkoutDir := fmt.Sprintf("chk-%s-%d", chkoutName, time.Now().Unix())
-	cloneURL, err := GetCloneURLForRepo(repo)
+	cloneURL, err := GetSSHCloneURLForRepo(repo)
 	if err != nil {
 		return "", fmt.Errorf("failed to get clone URL: %w", err)
 	}
