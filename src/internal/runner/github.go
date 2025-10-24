@@ -119,7 +119,7 @@ func (r *RunnerGitHub) DiffManifests(result *models.BuildManifestResult) (map[st
 func (r *RunnerGitHub) Process() error {
 	logger.Info("Process: starting...")
 
-	logger.WithField("repo", r.options.GhRepo).WithField("baseRef", r.prInfo.BaseRef).Info("Sparse checking out manifests")
+	logger.WithField("repo", r.options.GhRepo).WithField("branch", r.prInfo.BaseRef).Debug("Process: Calling SparseCheckoutAtPath for base commit")
 	checkoutBeforePath, err := r.ghclient.SparseCheckoutAtPath(
 		r.Context, r.options.GhRepo, r.prInfo.BaseRef, r.options.ManifestsPath)
 	if err != nil {

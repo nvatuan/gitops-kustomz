@@ -207,27 +207,39 @@ func (c *Client) SparseCheckoutAtPath(ctx context.Context, repo, branch, path st
 	// 1. git clone --filter=blob:none --depth 1 --no-checkout --single-branch -b branch cloneURL directory
 	logger.WithField("tmpdir", tmpdir).WithField("checkoutDir", checkoutDir).Debug("Cloning...")
 	cloneCmd := exec.CommandContext(ctx, "git", "clone", "--filter=blob:none", "--depth", "1", "--no-checkout", "--single-branch", "-b", branch, cloneURL, checkoutDir)
+	logger.WithField("cloneCmd", cloneCmd.String()).Debug("Showing clone command")
 	cloneCmd.Dir = tmpdir
 	if err := cloneCmd.Run(); err != nil {
-		return "", fmt.Errorf("failed to clone: %w", err)
+		output, err := cloneCmd.CombinedOutput()
+		if err != nil {
+			return "", fmt.Errorf("failed to clone: %w\nOutput: %s", err, string(output))
+		}
 	}
 
 	// 2. git sparse-checkout set --no-cone path
 	logger.WithField("tmpdir", tmpdir).WithField("checkoutDir", checkoutDir).Debug("Set path sparse-checkout...")
 	sparseCmd := exec.CommandContext(ctx, "git", "sparse-checkout", "set", "--no-cone", path)
 	sparseCmd.Dir = filepath.Join(tmpdir, checkoutDir)
+	logger.WithField("sparseCmd", sparseCmd.String()).Debug("Showing sparse-checkout command")
 	if err := sparseCmd.Run(); err != nil {
 		_ = os.RemoveAll(checkoutDir)
-		return "", fmt.Errorf("failed to set sparse checkout: %w", err)
+		output, outputErr := sparseCmd.CombinedOutput()
+		if err != nil {
+			return "", fmt.Errorf("failed to set sparse checkout with error: %w\n-Output Error: %s\n-Output: %s", err, outputErr, string(output))
+		}
 	}
 
 	// 3. git checkout branch
 	logger.WithField("tmpdir", tmpdir).WithField("branch", branch).WithField("checkoutDir", checkoutDir).Debug("Check out branch...")
 	checkoutCmd := exec.CommandContext(ctx, "git", "checkout", branch)
 	checkoutCmd.Dir = filepath.Join(tmpdir, checkoutDir)
+	logger.WithField("checkoutCmd", checkoutCmd.String()).Debug("Showing checkout command")
 	if err := checkoutCmd.Run(); err != nil {
+		output, outputErr := checkoutCmd.CombinedOutput()
 		_ = os.RemoveAll(checkoutDir)
-		return "", fmt.Errorf("failed to checkout: %w", err)
+		if err != nil {
+			return "", fmt.Errorf("failed to set sparse checkout with error: %w\n-Output Error: %s\n-Output: %s", err, outputErr, string(output))
+		}
 	}
 
 	// 4. return directory
