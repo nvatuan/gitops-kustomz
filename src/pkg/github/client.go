@@ -200,9 +200,19 @@ func (c *Client) SparseCheckoutAtPath(ctx context.Context, repo, branch, path st
 
 	chkoutName := strings.ReplaceAll(branch, "/", "_")
 	checkoutDir := fmt.Sprintf("chk-%s-%d", chkoutName, time.Now().Unix())
-	cloneURL, err := GetSSHCloneURLForRepo(repo)
+	cloneURL, err := GetHTTPSCloneURLForRepo(repo)
 	if err != nil {
 		return "", fmt.Errorf("failed to get clone URL: %w", err)
+	}
+
+	// Use GitHub token for authentication
+	token := os.Getenv("GH_TOKEN")
+	if token == "" {
+		token = os.Getenv("GITHUB_TOKEN")
+	}
+	if token != "" {
+		// Insert token into HTTPS URL: https://TOKEN@github.com/owner/repo.git
+		cloneURL = strings.Replace(cloneURL, "https://", fmt.Sprintf("https://%s@", token), 1)
 	}
 
 	// 1. git clone --filter=blob:none --depth 1 --no-checkout --single-branch -b branch cloneURL directory
