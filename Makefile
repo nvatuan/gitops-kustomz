@@ -41,8 +41,8 @@ build-release:
 	# GOOS=linux GOARCH=arm64 go build ${LDFLAGS} -o dist/${BINARY_NAME}-linux-arm64 ${MAIN_PATH}
 	# @echo "Building macOS AMD64..."
 	# GOOS=darwin GOARCH=amd64 go build ${LDFLAGS} -o dist/${BINARY_NAME}-darwin-amd64 ${MAIN_PATH}
-	# @echo "Building macOS ARM64..."
-	# GOOS=darwin GOARCH=arm64 go build ${LDFLAGS} -o dist/${BINARY_NAME}-darwin-arm64 ${MAIN_PATH}
+	@echo "Building macOS ARM64..."
+	GOOS=darwin GOARCH=arm64 go build ${LDFLAGS} -o dist/${BINARY_NAME}-darwin-arm64 ${MAIN_PATH}
 	@echo "Generating checksums..."
 	cd dist && sha256sum ${BINARY_NAME}-* > checksums.txt
 	@echo "✅ Release binaries built successfully!"
