@@ -9,15 +9,15 @@
 
 | Policy Name | stg | prod |
 |-------------|-----|------|
-{{- range $policy := .PolicyEvaluation.PolicyMatrix.stg.BlockingPolicies -}}
+{{- range $policy := .PolicyEvaluation.PolicyMatrix.stg.BlockingPolicies}}
 | {{$policy.PolicyName}} | {{if $policy.IsPassing}}✅ PASS{{else}}❌ FAIL{{end}} | {{range $prodPolicy := $.PolicyEvaluation.PolicyMatrix.prod.BlockingPolicies}}{{if eq $prodPolicy.PolicyId $policy.PolicyId}}{{if $prodPolicy.IsPassing}}✅ PASS{{else}}❌ FAIL{{end}}{{end}}{{end}} |
 {{- end -}}
-{{- range $policy := .PolicyEvaluation.PolicyMatrix.stg.WarningPolicies -}}
+{{- range $policy := .PolicyEvaluation.PolicyMatrix.stg.WarningPolicies}}
 | {{$policy.PolicyName}} | {{if $policy.IsPassing}}✅ PASS{{else}}❌ FAIL{{end}} | {{range $prodPolicy := $.PolicyEvaluation.PolicyMatrix.prod.WarningPolicies}}{{if eq $prodPolicy.PolicyId $policy.PolicyId}}{{if $prodPolicy.IsPassing}}✅ PASS{{else}}❌ FAIL{{end}}{{end}}{{end}} |
 {{- end -}}
-{{- range $policy := .PolicyEvaluation.PolicyMatrix.stg.RecommendPolicies -}}
+{{- range $policy := .PolicyEvaluation.PolicyMatrix.stg.RecommendPolicies}}
 | {{$policy.PolicyName}} | {{if $policy.IsPassing}}✅ PASS{{else}}❌ FAIL{{end}} | {{range $prodPolicy := $.PolicyEvaluation.PolicyMatrix.prod.RecommendPolicies}}{{if eq $prodPolicy.PolicyId $policy.PolicyId}}{{if $prodPolicy.IsPassing}}✅ PASS{{else}}❌ FAIL{{end}}{{end}}{{end}} |
-{{- end}}
+{{- end -}}
 
 </details>
 
