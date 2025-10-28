@@ -1,29 +1,21 @@
 ## 📊 Manifest Changes
 
-{{if .EnvironmentDiffs}}
-{{range .EnvironmentDiffs}}
-### [`{{.Environment}}`]
+{{if .ManifestChanges}}
+{{range $env, $diff := .ManifestChanges}}
 
-{{if .HasChanges}}
-### [`{{.Environment}}`]: {{if .HasChanges}}`{{.LineCount}}` lines ({{.AddedLineCount}}➕/{{.DeletedLineCount}}➖){{else}}No changes detected.{{end}}
-<details open>
-<summary>Click to expand {{.Environment}} diff</summary>
+### [`{{$env}}`]: {{if gt $diff.LineCount 0}}`{{$diff.LineCount}}` lines ({{$diff.AddedLineCount}}➕/{{$diff.DeletedLineCount}}➖){{else}}No changes detected.{{end}}
+
+{{if gt $diff.LineCount 0}}
 
 ```diff
-{{.Content}}
+{{$diff.Content}}
 ```
 
-</details>
 {{else}}
-```
 ✅ No changes detected.
-```
 {{end}}
 
 {{end}}
 {{else}}
-```
 ✅ No changes detected.
-```
 {{end}}
-
