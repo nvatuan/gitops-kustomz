@@ -185,3 +185,57 @@ jobs:
         with:
           files: ./coverage.txt
           flags: unittests
+
+  sit-test-local:
+    name: System Integration Test (Local Mode)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache: true
+
+      - name: Cache tools
+        id: cache-tools
+        uses: actions/cache@v4
+        with:
+          path: |
+            /usr/local/bin/kustomize
+            /usr/local/bin/opa
+          key: tools-${{ runner.os }}-kustomize-${{ env.KUSTOMIZE_VERSION }}-opa-${{ env.OPA_VERSION }}
+
+      - name: Install kustomize
+        if: steps.cache-tools.outputs.cache-hit != 'true'
+        run: |
+          curl -sL "https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize%2Fv${{ env.KUSTOMIZE_VERSION }}/kustomize_v${{ env.KUSTOMIZE_VERSION }}_linux_amd64.tar.gz" | tar xz
+          sudo mv kustomize /usr/local/bin/
+          kustomize version
+
+      - name: Install OPA
+        if: steps.cache-tools.outputs.cache-hit != 'true'
+        run: |
+          curl -L -o opa "https://github.com/open-policy-agent/opa/releases/download/v${{ env.OPA_VERSION }}/opa_linux_amd64_static"
+          chmod +x opa
+          sudo mv opa /usr/local/bin/
+          opa version
+
+      - name: Install jq
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y jq
+
+      - name: Run SIT test
+        run: make sit-test-local
+
+      - name: Upload test outputs
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: sit-test-local-output
+          path: |
+            test/ut_local/output/
+          retention-days: 7

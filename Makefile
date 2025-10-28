@@ -98,6 +98,14 @@ run-github: build
 test-policies:
 	opa test sample/policies/*.opa
 
+# System Integration Test (SIT) - Local mode
+sit-test-local:
+	@echo "Running System Integration Test (Local Mode)..."
+	@test/ut_local/run_test.sh
+
+# Run all SIT tests, GitHub mode to be added
+sit-test: test-sit-local
+
 # Format code
 fmt:
 	go fmt ./...
