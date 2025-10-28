@@ -73,9 +73,15 @@ func (b *Builder) BuildToText(ctx context.Context, path string, overlayName stri
 func (b *Builder) buildAtPath(ctx context.Context, path string) ([]byte, error) {
 	logger.WithField("path", path).Info("Building at path...")
 	cmd := exec.CommandContext(ctx, "kustomize", "build", path)
-	output, err := cmd.CombinedOutput()
+
+	// Use Output() instead of CombinedOutput() to avoid stderr warnings in the output
+	output, err := cmd.Output()
 	if err != nil {
-		return nil, fmt.Errorf("kustomize build failed: %w\nOutput: %s", err, string(output))
+		// On error, get stderr for debugging
+		if exitErr, ok := err.(*exec.ExitError); ok {
+			return nil, fmt.Errorf("kustomize build failed: %w\nStderr: %s", err, string(exitErr.Stderr))
+		}
+		return nil, fmt.Errorf("kustomize build failed: %w", err)
 	}
 
 	return output, nil
