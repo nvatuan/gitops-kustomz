@@ -64,8 +64,8 @@ if [ -f "$OUTPUT_DIR/report.json" ] && [ -f "$JURY_OUTPUT_DIR/report.json" ]; th
             del(.timestamp) |
             .manifestChanges = (.manifestChanges | to_entries | map(
                 .value.content |= (
-                    gsub("--- before\\t[0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2}"; "--- before\\tTIMESTAMP") |
-                    gsub("\\+\\+\\+ after\\t[0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2}"; "+++ after\\tTIMESTAMP")
+                    gsub("--- before\\t[0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]+ [+-][0-9]{4})?"; "--- before\\tTIMESTAMP") |
+                    gsub("\\+\\+\\+ after\\t[0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]+ [+-][0-9]{4})?"; "+++ after\\tTIMESTAMP")
                 )
             ) | from_entries)
         ' "$OUTPUT_DIR/report.json" > "$OUTPUT_DIR/report.json.normalized"
@@ -74,8 +74,8 @@ if [ -f "$OUTPUT_DIR/report.json" ] && [ -f "$JURY_OUTPUT_DIR/report.json" ]; th
             del(.timestamp) |
             .manifestChanges = (.manifestChanges | to_entries | map(
                 .value.content |= (
-                    gsub("--- before\\t[0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2}"; "--- before\\tTIMESTAMP") |
-                    gsub("\\+\\+\\+ after\\t[0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2}"; "+++ after\\tTIMESTAMP")
+                    gsub("--- before\\t[0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]+ [+-][0-9]{4})?"; "--- before\\tTIMESTAMP") |
+                    gsub("\\+\\+\\+ after\\t[0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]+ [+-][0-9]{4})?"; "+++ after\\tTIMESTAMP")
                 )
             ) | from_entries)
         ' "$JURY_OUTPUT_DIR/report.json" > "$JURY_OUTPUT_DIR/report.json.normalized"
@@ -111,17 +111,17 @@ fi
 
 # Compare report.md (ignoring timestamp lines and diff timestamps)
 if [ -f "$OUTPUT_DIR/report.md" ] && [ -f "$JURY_OUTPUT_DIR/report.md" ]; then
-    # Filter out timestamp lines and normalize diff timestamps
+    # Filter out timestamp lines and normalize diff timestamps (including nanoseconds and timezone)
     sed -E \
         -e '/^[0-9]{4}-[0-9]{2}-[0-9]{2}/d' \
-        -e 's/(--- before\t)[0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2}/\1TIMESTAMP/' \
-        -e 's/(\+\+\+ after\t)[0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2}/\1TIMESTAMP/' \
+        -e 's/(--- before\t)[0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2}(\.[0-9]+ [+-][0-9]{4})?/\1TIMESTAMP/' \
+        -e 's/(\+\+\+ after\t)[0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2}(\.[0-9]+ [+-][0-9]{4})?/\1TIMESTAMP/' \
         "$OUTPUT_DIR/report.md" > "$OUTPUT_DIR/report.md.normalized"
     
     sed -E \
         -e '/^[0-9]{4}-[0-9]{2}-[0-9]{2}/d' \
-        -e 's/(--- before\t)[0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2}/\1TIMESTAMP/' \
-        -e 's/(\+\+\+ after\t)[0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2}/\1TIMESTAMP/' \
+        -e 's/(--- before\t)[0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2}(\.[0-9]+ [+-][0-9]{4})?/\1TIMESTAMP/' \
+        -e 's/(\+\+\+ after\t)[0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2}(\.[0-9]+ [+-][0-9]{4})?/\1TIMESTAMP/' \
         "$JURY_OUTPUT_DIR/report.md" > "$JURY_OUTPUT_DIR/report.md.normalized"
     
     if diff -q "$OUTPUT_DIR/report.md.normalized" "$JURY_OUTPUT_DIR/report.md.normalized" > /dev/null 2>&1; then
