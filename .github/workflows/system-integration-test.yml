@@ -1,0 +1,79 @@
+name: System Integration Test (Local Mode)
+
+on:
+  pull_request:
+    paths:
+      - 'src/**'
+      - 'test/ut_local/**'
+      - '.github/workflows/system-integration-test.yml'
+
+permissions:
+  contents: read
+  pull-requests: write
+
+env:
+  GO_VERSION: '1.22'
+  KUSTOMIZE_VERSION: '5.3.0'
+  CONFTEST_VERSION: '0.63.0'
+  JQ_VERSION: '1.7.1'
+
+jobs:
+  sit-test-local:
+    name: System Integration Test (Local Mode)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache: true
+
+      - name: Cache tools
+        id: cache-tools
+        uses: actions/cache@v4
+        with:
+          path: |
+            /usr/local/bin/kustomize
+            /usr/local/bin/conftest
+            /usr/local/bin/jq
+          key: tools-${{ runner.os }}-kustomize-${{ env.KUSTOMIZE_VERSION }}-conftest-${{ env.CONFTEST_VERSION }}-jq-${{ env.JQ_VERSION }}
+
+      - name: Install kustomize
+        if: steps.cache-tools.outputs.cache-hit != 'true'
+        run: |
+          curl -sL "https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize%2Fv${{ env.KUSTOMIZE_VERSION }}/kustomize_v${{ env.KUSTOMIZE_VERSION }}_linux_amd64.tar.gz" | tar xz
+          sudo mv kustomize /usr/local/bin/
+          kustomize version
+
+      - name: Install conftest
+        if: steps.cache-tools.outputs.cache-hit != 'true'
+        run: |
+          curl -L -o conftest.tar.gz "https://github.com/open-policy-agent/conftest/releases/download/v${{ env.CONFTEST_VERSION }}/conftest_${{ env.CONFTEST_VERSION }}_Linux_x86_64.tar.gz"
+          tar -xzf conftest.tar.gz
+          chmod +x conftest
+          sudo mv conftest /usr/local/bin/
+          conftest --version
+
+      - name: Install jq
+        if: steps.cache-tools.outputs.cache-hit != 'true'
+        run: |
+          curl -L -o jq "https://github.com/jqlang/jq/releases/download/jq-${{ env.JQ_VERSION }}/jq-linux-amd64"
+          chmod +x jq
+          sudo mv jq /usr/local/bin/
+          jq --version
+
+      - name: Run SIT test
+        run: make sit-test-local
+
+      ## No need to upload test outputs for now
+      # - name: Upload test outputs
+      #   uses: actions/upload-artifact@v4
+      #   if: always()
+      #   with:
+      #     name: sit-test-local-output
+      #     path: |
+      #       test/ut_local/output/
+      #     retention-days: 7
