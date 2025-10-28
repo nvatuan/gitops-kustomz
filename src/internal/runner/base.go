@@ -140,6 +140,7 @@ func (r *RunnerBase) DiffManifests(result *models.BuildManifestResult) (map[stri
 
 		addedLines, deletedLines, totalLines := diff.CalcLineChangesFromDiffContent(diffContent)
 		results[env] = models.EnvironmentDiff{
+			ContentType:      models.DiffContentTypeText,
 			LineCount:        totalLines,
 			AddedLineCount:   addedLines,
 			DeletedLineCount: deletedLines,

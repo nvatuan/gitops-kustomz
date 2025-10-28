@@ -17,12 +17,23 @@ import (
 	"github.com/gh-nvat/gitops-kustomz/src/pkg/trace"
 )
 
+const (
+	// GitHub Comment body length limit is 65536 characters, the default Markdown comment is about 2k characters.
+	// 10k is a reasonable limit for the diff content, as it is arguably humanly impossible to read a diff that is longer.
+	GH_COMMENT_MAX_DIFF_LENGTH = 10_000
+)
+
+var (
+	githubCommentMaxDiffLength = GH_COMMENT_MAX_DIFF_LENGTH
+)
+
 type RunnerGitHub struct {
 	RunnerBase
 
 	options  *Options
 	ghclient *github.Client
 
+	runId    int
 	prInfo   *models.PullRequest
 	comments []*models.Comment
 }
@@ -52,9 +63,29 @@ func NewRunnerGitHub(
 }
 
 func (r *RunnerGitHub) Initialize() error {
+	lg := logger.WithField("func", "RunnerGitHub.Initialize()")
+	lg.Info("Initializing runner: starting...")
+
 	if err := r.fetchAndSetPullRequestInfo(); err != nil {
 		return fmt.Errorf("failed to fetch pull request info: %w", err)
 	}
+	r.runId = 0
+	runIdStr := os.Getenv("GITHUB_RUN_ID")
+	if runIdStr != "" {
+		if _, err := fmt.Sscanf(runIdStr, "%d", &r.runId); err != nil {
+			lg.WithField("GITHUB_RUN_ID", runIdStr).WithField("error", err).Warn("GITHUB_RUN_ID env was set but failed to parse into int. Will not have artifact URLs in the diffs.")
+		}
+	} else {
+		lg.Warn("GITHUB_RUN_ID env was not set. Artifact Uploading will not have artifact URLs in the comment.")
+	}
+
+	if maxDiffLengthStr := os.Getenv("GITHUB_COMMENT_MAX_DIFF_LENGTH"); maxDiffLengthStr != "" {
+		if _, err := fmt.Sscanf(maxDiffLengthStr, "%d", &githubCommentMaxDiffLength); err != nil {
+			lg.WithField("GITHUB_COMMENT_MAX_DIFF_LENGTH", maxDiffLengthStr).WithField("error", err).Warn("GITHUB_COMMENT_MAX_DIFF_LENGTH env was set but failed to parse into int. Will use default value of 10,000.")
+			githubCommentMaxDiffLength = GH_COMMENT_MAX_DIFF_LENGTH
+		}
+	}
+	lg.Info("Initializing runner: done.")
 	return r.RunnerBase.Initialize()
 }
 
@@ -114,7 +145,56 @@ func (r *RunnerGitHub) BuildManifests(beforePath, afterPath string) (*models.Bui
 }
 
 func (r *RunnerGitHub) DiffManifests(result *models.BuildManifestResult) (map[string]models.EnvironmentDiff, error) {
-	return r.RunnerBase.DiffManifests(result)
+	// First, get the base diff results
+	diffs, err := r.RunnerBase.DiffManifests(result)
+	if err != nil {
+		return nil, err
+	}
+
+	for env, envDiff := range diffs {
+		if len(envDiff.Content) > GH_COMMENT_MAX_DIFF_LENGTH {
+			logger.WithFields(map[string]interface{}{
+				"env":        env,
+				"diffLength": len(envDiff.Content),
+				"maxLength":  GH_COMMENT_MAX_DIFF_LENGTH,
+			}).Info("Diff is too long, uploading as artifact")
+
+			// Create filename for this diff
+			filename := fmt.Sprintf("diff-pr%d-%s-%s.txt", r.options.GhPrNumber, env, r.options.Service)
+
+			// Save diff content to file
+			outputDir := r.Options.OutputDir
+			if err := os.MkdirAll(outputDir, 0755); err != nil {
+				return nil, fmt.Errorf("failed to create output directory: %w", err)
+			}
+
+			filepath := filepath.Join(outputDir, filename)
+			if err := os.WriteFile(filepath, []byte(envDiff.Content), 0644); err != nil {
+				return nil, fmt.Errorf("failed to write diff file: %w", err)
+			}
+
+			// Upload file as artifact and get URL
+			artifactURL, err := github.GetWorkflowRunUrl(r.options.GhRepo, r.runId)
+			if err != nil {
+				logger.WithField("error", err).Error("Failed to get workflow run URL, leaving content as text")
+				artifactURL = ""
+			}
+
+			// Update the diff result to point to the artifact URL
+			envDiff.ContentGHFilePath = &filepath
+			envDiff.ContentType = models.DiffContentTypeGHArtifact
+			envDiff.Content = artifactURL
+			diffs[env] = envDiff
+
+			logger.WithFields(map[string]interface{}{
+				"env":         env,
+				"filename":    filename,
+				"artifactURL": artifactURL,
+			}).Info("Diff uploaded as artifact successfully")
+		}
+	}
+
+	return diffs, nil
 }
 
 func (r *RunnerGitHub) Process() error {
