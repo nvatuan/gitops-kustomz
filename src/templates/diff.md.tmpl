@@ -6,6 +6,12 @@
 ### [`{{$env}}`]: {{if gt $diff.LineCount 0}}`{{$diff.LineCount}}` lines ({{$diff.AddedLineCount}}➕/{{$diff.DeletedLineCount}}➖){{else}}No changes detected.{{end}}
 
 {{if gt $diff.LineCount 0}}
+{{if eq $diff.ContentType "ext_ghartifact"}}
+📎 **Diff too large to display inline.**  
+View the full diff in the artifact: [`{{$diff.Content}}`](../../actions/runs/${{github.run_id}})
+
+> **Note**: The diff contains {{$diff.LineCount}} lines and has been uploaded as an artifact for easier review.
+{{else}}
 <details open>
 <summary>Click to expand {{$env}} diff</summary>
 
@@ -14,6 +20,7 @@
 ```
 
 </details>
+{{end}}
 {{else}}
 ✅ No changes detected.
 {{end}}

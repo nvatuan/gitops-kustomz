@@ -35,6 +35,8 @@ type GitHubClient interface {
 	FindToolComment(ctx context.Context, repo string, prNumber int) (*models.Comment, error)
 	// SparseCheckoutAtPath clones with treeless and sparse checks out specific ref at path
 	SparseCheckoutAtPath(ctx context.Context, cloneURL, ref, path string) (string, error)
+	// UploadDiffAsArtifact uploads a diff as a GitHub artifact
+	UploadDiffAsArtifact(ctx context.Context, repo string, prNumber int, env, diffContent string) (string, error)
 }
 
 // Client handles GitHub API interactions using go-github
@@ -282,4 +284,40 @@ func (c *Client) SparseCheckoutAtPath(ctx context.Context, repo, branch, path st
 	// }
 
 	return absPath, nil
+}
+
+// UploadDiffAsArtifact saves the diff content to a file in the output directory
+// and returns the filename that can be referenced in PR comments
+// The actual artifact upload is handled by the GitHub Actions workflow
+func (c *Client) UploadDiffAsArtifact(ctx context.Context, repo string, prNumber int, env, diffContent string) (string, error) {
+	// Create filename with PR number and environment
+	filename := fmt.Sprintf("diff-pr%d-%s.txt", prNumber, env)
+	
+	// Get output directory from environment variable or use default
+	outputDir := os.Getenv("OUTPUT_DIR")
+	if outputDir == "" {
+		outputDir = "output"
+	}
+	
+	// Ensure output directory exists
+	if err := os.MkdirAll(outputDir, 0755); err != nil {
+		return "", fmt.Errorf("failed to create output directory: %w", err)
+	}
+	
+	// Write diff content to file
+	filepath := filepath.Join(outputDir, filename)
+	if err := os.WriteFile(filepath, []byte(diffContent), 0644); err != nil {
+		return "", fmt.Errorf("failed to write diff file: %w", err)
+	}
+	
+	logger.WithFields(log.Fields{
+		"repo":     repo,
+		"prNumber": prNumber,
+		"env":      env,
+		"filename": filename,
+		"filepath": filepath,
+	}).Info("Saved diff as artifact file")
+	
+	// Return filename that will be uploaded as artifact
+	return filename, nil
 }

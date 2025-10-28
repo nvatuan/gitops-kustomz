@@ -114,7 +114,48 @@ func (r *RunnerGitHub) BuildManifests(beforePath, afterPath string) (*models.Bui
 }
 
 func (r *RunnerGitHub) DiffManifests(result *models.BuildManifestResult) (map[string]models.EnvironmentDiff, error) {
-	return r.RunnerBase.DiffManifests(result)
+	// First, get the base diff results
+	diffs, err := r.RunnerBase.DiffManifests(result)
+	if err != nil {
+		return nil, err
+	}
+	
+	// Check each diff for length and upload as artifact if too long
+	const maxDiffLength = 10000 // 10k characters
+	for env, envDiff := range diffs {
+		if len(envDiff.Content) > maxDiffLength {
+			logger.WithFields(map[string]interface{}{
+				"env":        env,
+				"diffLength": len(envDiff.Content),
+				"maxLength":  maxDiffLength,
+			}).Info("Diff is too long, uploading as artifact")
+			
+			// Upload diff as artifact
+			filename, err := r.ghclient.UploadDiffAsArtifact(
+				r.Context,
+				r.options.GhRepo,
+				r.options.GhPrNumber,
+				env,
+				envDiff.Content,
+			)
+			if err != nil {
+				logger.WithField("error", err).Error("Failed to upload diff as artifact")
+				return nil, fmt.Errorf("failed to upload diff as artifact: %w", err)
+			}
+			
+			// Update the diff result to point to the artifact
+			envDiff.ContentType = models.DiffContentTypeGHArtifact
+			envDiff.Content = filename
+			diffs[env] = envDiff
+			
+			logger.WithFields(map[string]interface{}{
+				"env":      env,
+				"filename": filename,
+			}).Info("Diff uploaded as artifact successfully")
+		}
+	}
+	
+	return diffs, nil
 }
 
 func (r *RunnerGitHub) Process() error {
