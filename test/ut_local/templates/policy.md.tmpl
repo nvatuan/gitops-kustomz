@@ -1,8 +1,8 @@
 ## 🛡️ Policy Evaluation
 
-| **Environments** | **Success** | **Failed** | **Omitted** |
-|--------------|---------|--------|---------|
-{{range $env, $sum := .PolicyEvaluation.EnvironmentSummary}}| `{{ $env }}` | `{{ $sum.PolicyCounts.TotalSuccess }}`✅ | `{{ $sum.PolicyCounts.TotalFailed }}`❌ | `{{ $sum.PolicyCounts.TotalOmitted }}`⏭️ |
+| **Environments** | **Success** | **Omitted** | **Failed** | **Failed (Blocking)** | **Failed (Warning)** | **Failed (Recommend)** |
+|--------------|---------|---------|--------|---------|---------|---------|
+{{range $env, $sum := .PolicyEvaluation.EnvironmentSummary}}| `{{ $env }}` | `{{ $sum.PolicyCounts.TotalSuccess }}`✅ | `{{ $sum.PolicyCounts.TotalOmitted }}`⏭️ | `{{ $sum.PolicyCounts.TotalFailed }}`❌ | `{{ $sum.PolicyCounts.BlockingFailedCount }}`🚫 | `{{ $sum.PolicyCounts.WarningFailedCount }}`⚠️ | `{{ $sum.PolicyCounts.RecommendFailedCount }}`💡 |
 {{ end }}
 
 <details> <summary> Policy Evaluation Matrix: </summary>

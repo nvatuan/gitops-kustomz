@@ -2,7 +2,7 @@
 
 | Timestamp | Base | Head | Environments |
 -|-|-|-
-2025-10-28 21:02:48 UTC | base | head | `stg`, `prod`
+2025-10-29 02:40:54 UTC | base | head | `stg`, `prod`
 
 ## 📊 Manifest Changes
 
@@ -14,9 +14,9 @@
 
 
 ```diff
---- before	2025-10-28 21:02:48
-+++ after	2025-10-28 21:02:48
-@@ -51,7 +51,7 @@
+--- before	2025-10-29 02:40:54
++++ after	2025-10-29 02:40:54
+@@ -48,7 +48,7 @@
            value: production
          - name: LOG_LEVEL
            value: info
@@ -25,7 +25,7 @@
          livenessProbe:
            failureThreshold: 3
            httpGet:
-@@ -73,12 +73,45 @@
+@@ -70,12 +70,45 @@
            timeoutSeconds: 3
          resources:
            limits:
@@ -72,7 +72,7 @@
  apiVersion: autoscaling/v2
  kind: HorizontalPodAutoscaler
  metadata:
-@@ -197,7 +230,7 @@
+@@ -194,7 +227,7 @@
    namespace: my-app-prod
  spec:
    rules:
@@ -81,7 +81,7 @@
      http:
        paths:
        - backend:
-@@ -209,5 +242,5 @@
+@@ -206,5 +239,5 @@
          pathType: Prefix
    tls:
    - hosts:
@@ -100,9 +100,9 @@
 
 
 ```diff
---- before	2025-10-28 21:02:48
-+++ after	2025-10-28 21:02:48
-@@ -7,6 +7,7 @@
+--- before	2025-10-29 02:40:54
++++ after	2025-10-29 02:40:54
+@@ -4,6 +4,7 @@
    labels:
      app: my-app
      environment: stg
@@ -110,7 +110,7 @@
      version: v1.0.0
    name: stg-my-app-service
    namespace: my-app-stg
-@@ -19,6 +20,7 @@
+@@ -16,6 +17,7 @@
    selector:
      app: my-app
      environment: stg
@@ -118,7 +118,7 @@
      version: v1.0.0
    type: ClusterIP
  ---
-@@ -28,6 +30,7 @@
+@@ -25,6 +27,7 @@
    labels:
      app: my-app
      environment: stg
@@ -126,7 +126,7 @@
      version: v1.0.0
    name: stg-my-app
    namespace: my-app-stg
-@@ -37,12 +40,14 @@
+@@ -34,12 +37,14 @@
      matchLabels:
        app: my-app
        environment: stg
@@ -141,7 +141,7 @@
          version: v1.0.0
      spec:
        containers:
-@@ -50,7 +55,7 @@
+@@ -47,7 +52,7 @@
          - name: ENVIRONMENT
            value: staging
          - name: LOG_LEVEL
@@ -150,7 +150,7 @@
          image: nginx:1.21
          livenessProbe:
            httpGet:
-@@ -69,8 +74,8 @@
+@@ -66,8 +71,8 @@
            periodSeconds: 5
          resources:
            limits:
@@ -161,7 +161,7 @@
            requests:
              cpu: 250m
              memory: 128Mi
-@@ -81,6 +86,7 @@
+@@ -78,6 +83,7 @@
    labels:
      app: my-app
      environment: stg
@@ -169,7 +169,7 @@
      version: v1.0.0
    name: stg-my-app-hpa
    namespace: my-app-stg
-@@ -128,6 +134,7 @@
+@@ -125,6 +131,7 @@
    labels:
      app: my-app
      environment: stg
@@ -177,7 +177,7 @@
      version: v1.0.0
    name: stg-my-app-keda
    namespace: my-app-stg
-@@ -138,7 +145,7 @@
+@@ -135,7 +142,7 @@
      replicas: 1
    idleReplicaCount: 0
    maxReplicaCount: 8
@@ -186,7 +186,7 @@
    pollingInterval: 15
    scaleTargetRef:
      name: my-app
-@@ -167,6 +174,7 @@
+@@ -164,6 +171,7 @@
    labels:
      app: my-app
      environment: stg
@@ -204,10 +204,10 @@
 
 ## 🛡️ Policy Evaluation
 
-| **Environments** | **Success** | **Failed** | **Omitted** |
-|--------------|---------|--------|---------|
-| `prod` | `1`✅ | `2`❌ | `0`⏭️ |
-| `stg` | `1`✅ | `2`❌ | `0`⏭️ |
+| **Environments** | **Success** | **Omitted** | **Failed** | **Failed (Blocking)** | **Failed (Warning)** | **Failed (Recommend)** |
+|--------------|---------|---------|--------|---------|---------|---------|
+| `prod` | `1`✅ | `0`⏭️ | `2`❌ | `1`🚫 | `1`⚠️ | `0`💡 |
+| `stg` | `1`✅ | `0`⏭️ | `2`❌ | `0`🚫 | `1`⚠️ | `1`💡 |
 
 
 <details> <summary> Policy Evaluation Matrix: </summary>
