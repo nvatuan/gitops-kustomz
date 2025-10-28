@@ -2,7 +2,7 @@
 
 | Timestamp | Base | Head | Environments |
 -|-|-|-
-2025-10-29 02:32:05 UTC | base | head | `stg`, `prod`
+2025-10-29 02:40:54 UTC | base | head | `stg`, `prod`
 
 ## 📊 Manifest Changes
 
@@ -14,8 +14,8 @@
 
 
 ```diff
---- before	2025-10-29 02:32:05
-+++ after	2025-10-29 02:32:05
+--- before	2025-10-29 02:40:54
++++ after	2025-10-29 02:40:54
 @@ -48,7 +48,7 @@
            value: production
          - name: LOG_LEVEL
@@ -100,8 +100,8 @@
 
 
 ```diff
---- before	2025-10-29 02:32:05
-+++ after	2025-10-29 02:32:05
+--- before	2025-10-29 02:40:54
++++ after	2025-10-29 02:40:54
 @@ -4,6 +4,7 @@
    labels:
      app: my-app
