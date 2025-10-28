@@ -18,134 +18,126 @@
 
 </details>
 
-<details> <summary> Details of failing policies: </summary>
+<details> <summary> Failing Policies Details: </summary>
 
-### 🚫 BLOCKING Policies |{{range $env, $sum := .PolicyEvaluation.EnvironmentSummary}} `{{$env}}`: `{{$sum.PolicyCounts.BlockingFailedCount}}`❌ |{{end}}
+#### 🚫 BLOCKING Policies |{{range $env, $sum := .PolicyEvaluation.EnvironmentSummary}} `{{$env}}`: `{{$sum.PolicyCounts.BlockingFailedCount}}`❌ |{{end}}
 
-These policies are blocking your PR merge. Resolve them or override them if applicable. Please note that overriding policies mean you are aware of the risks and consequences of your actions.
-
-#### [`stg`] environment 
+##### [`stg`] environment 
 
 {{- if gt .PolicyEvaluation.EnvironmentSummary.stg.PolicyCounts.BlockingFailedCount 0 }}
 
-{{range $policy := .PolicyEvaluation.PolicyMatrix.stg.BlockingPolicies}}
+{{range $policy := .PolicyEvaluation.PolicyMatrix.stg.BlockingPolicies}}{{if not $policy.IsPassing}}
 * Policy `{{$policy.PolicyName}}` failed with the following messages:
 {{range $msg := $policy.FailMessages}}  * {{$msg}}
 {{end}}
-{{end}}
+{{end}}{{end}}
 
 {{else}}
 * None! 🙌
 {{end}}
 
 {{- if gt .PolicyEvaluation.EnvironmentSummary.prod.PolicyCounts.BlockingFailedCount 0 }}
-#### [`prod`] environment 
+##### [`prod`] environment 
 
-{{range $policy := .PolicyEvaluation.PolicyMatrix.prod.BlockingPolicies}}
+{{range $policy := .PolicyEvaluation.PolicyMatrix.prod.BlockingPolicies}}{{if not $policy.IsPassing}}
 * Policy `{{$policy.PolicyName}}` failed with the following messages:
 {{range $msg := $policy.FailMessages}}  * {{$msg}}
 {{end}}
-{{end}}
+{{end}}{{end}}
 {{else}}
 * None! 🙌
 {{end}}
 
-### ⚠️ WARNING Policies | {{range $env, $sum := .PolicyEvaluation.EnvironmentSummary}} `{{$env}}`: `{{$sum.PolicyCounts.WarningFailedCount}}`❌ |{{end}}
-
-These policies failure does not block your PR merge, but only faling the CI status. Please consider fixing them. Please note that overriding policies mean you are aware of the risks and consequences of your actions.
+#### ⚠️ WARNING Policies | {{range $env, $sum := .PolicyEvaluation.EnvironmentSummary}} `{{$env}}`: `{{$sum.PolicyCounts.WarningFailedCount}}`❌ |{{end}}
 
 {{- if gt .PolicyEvaluation.EnvironmentSummary.stg.PolicyCounts.WarningFailedCount 0 }}
-#### [`stg`] environment 
+##### [`stg`] environment 
 
-{{range $policy := .PolicyEvaluation.PolicyMatrix.stg.WarningPolicies}}
+{{range $policy := .PolicyEvaluation.PolicyMatrix.stg.WarningPolicies}}{{if not $policy.IsPassing}}
 * Policy `{{$policy.PolicyName}}` failed with the following messages:
 {{range $msg := $policy.FailMessages}}  * {{$msg}}
 {{end}}
-{{end}}
+{{end}}{{end}}
 {{else}}
 * None! 🙌
 {{end}}
 
 {{- if gt .PolicyEvaluation.EnvironmentSummary.prod.PolicyCounts.WarningFailedCount 0 }}
-#### [`prod`] environment 
+##### [`prod`] environment 
 
-{{range $policy := .PolicyEvaluation.PolicyMatrix.prod.WarningPolicies}}
+{{range $policy := .PolicyEvaluation.PolicyMatrix.prod.WarningPolicies}}{{if not $policy.IsPassing}}
 * Policy `{{$policy.PolicyName}}` failed with the following messages:
 {{range $msg := $policy.FailMessages}}  * {{$msg}}
 {{end}}
-{{end}}
+{{end}}{{end}}
 {{else}}
 * None! 🙌
 {{end}}
 
-### 💡 RECOMMEND Policies | {{range $env, $sum := .PolicyEvaluation.EnvironmentSummary}} `{{$env}}`: `{{$sum.PolicyCounts.RecommendFailedCount}}`❌ |{{end}}
-
-These policies are recommendations. They are not required to be resolved, but you may consider fixing them if applicable for your case.
+#### 💡 RECOMMEND Policies | {{range $env, $sum := .PolicyEvaluation.EnvironmentSummary}} `{{$env}}`: `{{$sum.PolicyCounts.RecommendFailedCount}}`❌ |{{end}}
 
 {{- if gt .PolicyEvaluation.EnvironmentSummary.stg.PolicyCounts.RecommendFailedCount 0 }}
-#### [`stg`] environment 
+##### [`stg`] environment 
 
-{{range $policy := .PolicyEvaluation.PolicyMatrix.stg.RecommendPolicies}}
+{{range $policy := .PolicyEvaluation.PolicyMatrix.stg.RecommendPolicies}}{{if not $policy.IsPassing}}
 * Policy `{{$policy.PolicyName}}` failed with the following messages:
 {{range $msg := $policy.FailMessages}}  * {{$msg}}
 {{end}}
-{{end}}
+{{end}}{{end}}
 {{else}}
 * None! 🙌
 {{end}}
 
-#### [`prod`] environment 
+##### [`prod`] environment 
 
 {{- if gt .PolicyEvaluation.EnvironmentSummary.prod.PolicyCounts.RecommendFailedCount 0 }}
 
-{{range $policy := .PolicyEvaluation.PolicyMatrix.prod.RecommendPolicies}}
+{{range $policy := .PolicyEvaluation.PolicyMatrix.prod.RecommendPolicies}}{{if not $policy.IsPassing}}
 * Policy `{{$policy.PolicyName}}` failed with the following messages:
 {{range $msg := $policy.FailMessages}}  * {{$msg}}
 {{end}}
-{{end}}
+{{end}}{{end}}
 {{else}}
 * None! 🙌
 {{end}}
 
-### ⏭️ Omitted Policies | {{range $env, $sum := .PolicyEvaluation.EnvironmentSummary}} `{{$env}}`: `{{$sum.PolicyCounts.TotalOmittedFailed}}`❌ |{{end}}
+#### ⏭️ Omitted Policies | {{range $env, $sum := .PolicyEvaluation.EnvironmentSummary}} `{{$env}}`: `{{$sum.PolicyCounts.TotalOmittedFailed}}`❌ |{{end}}
 
-These policies are omitted. They are evaluated but the results are not considered. Usually these are policies that you have overriden, or policies that has yet to be in effect yet (not date yet).
-
-#### [`stg`] environment 
+##### [`stg`] environment 
 
 {{- if gt .PolicyEvaluation.EnvironmentSummary.stg.PolicyCounts.TotalOmittedFailed 0 }}
 
-{{range $policy := .PolicyEvaluation.PolicyMatrix.stg.OverriddenPolicies}}
+{{range $policy := .PolicyEvaluation.PolicyMatrix.stg.OverriddenPolicies}}{{if not $policy.IsPassing}}
 * Policy `{{$policy.PolicyName}}` failed with the following messages:
 {{range $msg := $policy.FailMessages}}  * {{$msg}}
 {{end}}
-{{end}}
+{{end}}{{end}}
 
-{{range $policy := .PolicyEvaluation.PolicyMatrix.stg.NotInEffectPolicies}}
+{{range $policy := .PolicyEvaluation.PolicyMatrix.stg.NotInEffectPolicies}}{{if not $policy.IsPassing}}
 * Policy `{{$policy.PolicyName}}` failed with the following messages:
 {{range $msg := $policy.FailMessages}}  * {{$msg}}
 {{end}}
-{{end}}
+{{end}}{{end}}
 
 {{else}}
 * None! 🙌
 {{end}}
 
-#### [`prod`] environment 
+##### [`prod`] environment 
 
 {{- if gt .PolicyEvaluation.EnvironmentSummary.prod.PolicyCounts.TotalOmittedFailed 0 }}
 
-{{range $policy := .PolicyEvaluation.PolicyMatrix.prod.OverriddenPolicies}}
+{{range $policy := .PolicyEvaluation.PolicyMatrix.prod.OverriddenPolicies}}{{if not $policy.IsPassing}}
 * Policy `{{$policy.PolicyName}}` failed with the following messages:
 {{range $msg := $policy.FailMessages}}  * {{$msg}}
 {{end}}
-{{end}}
+{{end}}{{end}}
 
-{{range $policy := .PolicyEvaluation.PolicyMatrix.prod.NotInEffectPolicies}}
+{{range $policy := .PolicyEvaluation.PolicyMatrix.prod.NotInEffectPolicies}}{{if not $policy.IsPassing}}
 * Policy `{{$policy.PolicyName}}` failed with the following messages:
 {{range $msg := $policy.FailMessages}}  * {{$msg}}
 {{end}}
-{{end}}
+{{end}}{{end}}
 
 {{else}}
 * None! 🙌

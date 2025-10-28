@@ -26,11 +26,11 @@
 
 {{- if gt .PolicyEvaluation.EnvironmentSummary.stg.PolicyCounts.BlockingFailedCount 0 }}
 
-{{range $policy := .PolicyEvaluation.PolicyMatrix.stg.BlockingPolicies}}
+{{range $policy := .PolicyEvaluation.PolicyMatrix.stg.BlockingPolicies}}{{if not $policy.IsPassing}}
 * Policy `{{$policy.PolicyName}}` failed with the following messages:
 {{range $msg := $policy.FailMessages}}  * {{$msg}}
 {{end}}
-{{end}}
+{{end}}{{end}}
 
 {{else}}
 * None! 🙌
@@ -39,11 +39,11 @@
 {{- if gt .PolicyEvaluation.EnvironmentSummary.prod.PolicyCounts.BlockingFailedCount 0 }}
 ##### [`prod`] environment 
 
-{{range $policy := .PolicyEvaluation.PolicyMatrix.prod.BlockingPolicies}}
+{{range $policy := .PolicyEvaluation.PolicyMatrix.prod.BlockingPolicies}}{{if not $policy.IsPassing}}
 * Policy `{{$policy.PolicyName}}` failed with the following messages:
 {{range $msg := $policy.FailMessages}}  * {{$msg}}
 {{end}}
-{{end}}
+{{end}}{{end}}
 {{else}}
 * None! 🙌
 {{end}}
@@ -53,11 +53,11 @@
 {{- if gt .PolicyEvaluation.EnvironmentSummary.stg.PolicyCounts.WarningFailedCount 0 }}
 ##### [`stg`] environment 
 
-{{range $policy := .PolicyEvaluation.PolicyMatrix.stg.WarningPolicies}}
+{{range $policy := .PolicyEvaluation.PolicyMatrix.stg.WarningPolicies}}{{if not $policy.IsPassing}}
 * Policy `{{$policy.PolicyName}}` failed with the following messages:
 {{range $msg := $policy.FailMessages}}  * {{$msg}}
 {{end}}
-{{end}}
+{{end}}{{end}}
 {{else}}
 * None! 🙌
 {{end}}
@@ -65,11 +65,11 @@
 {{- if gt .PolicyEvaluation.EnvironmentSummary.prod.PolicyCounts.WarningFailedCount 0 }}
 ##### [`prod`] environment 
 
-{{range $policy := .PolicyEvaluation.PolicyMatrix.prod.WarningPolicies}}
+{{range $policy := .PolicyEvaluation.PolicyMatrix.prod.WarningPolicies}}{{if not $policy.IsPassing}}
 * Policy `{{$policy.PolicyName}}` failed with the following messages:
 {{range $msg := $policy.FailMessages}}  * {{$msg}}
 {{end}}
-{{end}}
+{{end}}{{end}}
 {{else}}
 * None! 🙌
 {{end}}
@@ -79,11 +79,11 @@
 {{- if gt .PolicyEvaluation.EnvironmentSummary.stg.PolicyCounts.RecommendFailedCount 0 }}
 ##### [`stg`] environment 
 
-{{range $policy := .PolicyEvaluation.PolicyMatrix.stg.RecommendPolicies}}
+{{range $policy := .PolicyEvaluation.PolicyMatrix.stg.RecommendPolicies}}{{if not $policy.IsPassing}}
 * Policy `{{$policy.PolicyName}}` failed with the following messages:
 {{range $msg := $policy.FailMessages}}  * {{$msg}}
 {{end}}
-{{end}}
+{{end}}{{end}}
 {{else}}
 * None! 🙌
 {{end}}
@@ -92,11 +92,11 @@
 
 {{- if gt .PolicyEvaluation.EnvironmentSummary.prod.PolicyCounts.RecommendFailedCount 0 }}
 
-{{range $policy := .PolicyEvaluation.PolicyMatrix.prod.RecommendPolicies}}
+{{range $policy := .PolicyEvaluation.PolicyMatrix.prod.RecommendPolicies}}{{if not $policy.IsPassing}}
 * Policy `{{$policy.PolicyName}}` failed with the following messages:
 {{range $msg := $policy.FailMessages}}  * {{$msg}}
 {{end}}
-{{end}}
+{{end}}{{end}}
 {{else}}
 * None! 🙌
 {{end}}
@@ -107,17 +107,17 @@
 
 {{- if gt .PolicyEvaluation.EnvironmentSummary.stg.PolicyCounts.TotalOmittedFailed 0 }}
 
-{{range $policy := .PolicyEvaluation.PolicyMatrix.stg.OverriddenPolicies}}
+{{range $policy := .PolicyEvaluation.PolicyMatrix.stg.OverriddenPolicies}}{{if not $policy.IsPassing}}
 * Policy `{{$policy.PolicyName}}` failed with the following messages:
 {{range $msg := $policy.FailMessages}}  * {{$msg}}
 {{end}}
-{{end}}
+{{end}}{{end}}
 
-{{range $policy := .PolicyEvaluation.PolicyMatrix.stg.NotInEffectPolicies}}
+{{range $policy := .PolicyEvaluation.PolicyMatrix.stg.NotInEffectPolicies}}{{if not $policy.IsPassing}}
 * Policy `{{$policy.PolicyName}}` failed with the following messages:
 {{range $msg := $policy.FailMessages}}  * {{$msg}}
 {{end}}
-{{end}}
+{{end}}{{end}}
 
 {{else}}
 * None! 🙌
@@ -127,17 +127,17 @@
 
 {{- if gt .PolicyEvaluation.EnvironmentSummary.prod.PolicyCounts.TotalOmittedFailed 0 }}
 
-{{range $policy := .PolicyEvaluation.PolicyMatrix.prod.OverriddenPolicies}}
+{{range $policy := .PolicyEvaluation.PolicyMatrix.prod.OverriddenPolicies}}{{if not $policy.IsPassing}}
 * Policy `{{$policy.PolicyName}}` failed with the following messages:
 {{range $msg := $policy.FailMessages}}  * {{$msg}}
 {{end}}
-{{end}}
+{{end}}{{end}}
 
-{{range $policy := .PolicyEvaluation.PolicyMatrix.prod.NotInEffectPolicies}}
+{{range $policy := .PolicyEvaluation.PolicyMatrix.prod.NotInEffectPolicies}}{{if not $policy.IsPassing}}
 * Policy `{{$policy.PolicyName}}` failed with the following messages:
 {{range $msg := $policy.FailMessages}}  * {{$msg}}
 {{end}}
-{{end}}
+{{end}}{{end}}
 
 {{else}}
 * None! 🙌
