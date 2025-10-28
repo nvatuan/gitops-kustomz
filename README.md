@@ -116,7 +116,19 @@ See [docs/TEMPLATE_VARIABLES.md](./docs/TEMPLATE_VARIABLES.md) for complete refe
 
 - Go 1.22+
 - `kustomize` binary in PATH
+- `conftest` binary in PATH (for OPA policy evaluation)
 - GitHub token with PR comment permissions (for CI mode)
+
+## Environment Variables
+
+### GitHub Mode
+- `GH_TOKEN` or `GITHUB_TOKEN` - GitHub personal access token with PR comment permissions (required)
+- `GITHUB_RUN_ID` or `GH_RUN_ID` - GitHub Actions run ID (auto-set by GitHub Actions, used for artifact URLs)
+
+### Optional Configuration
+- `LOGLEVEL` - Log level for the application (default: `info`, options: `debug`, `info`, `warn`, `error`)
+- `DEBUG` - Enable debug mode (set to `1` or `true`)
+- `GH_MAX_COMMENT_LENGTH` - Maximum length for inline diffs in PR comments (default: `10000` characters). Diffs exceeding this limit will be uploaded as artifacts.
 
 ## Installation
 
