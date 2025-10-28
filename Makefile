@@ -57,7 +57,7 @@ run: build
 # Usage: LOGLEVEL=debug make run-local (set log level)
 # Usage: DEBUG=1 LOGLEVEL=trace make run-local (both debug and trace logging)
 run-local: build
-	${BIN_DIR}/${BINARY_NAME} --run-mode local \
+	DEBUG=1 ${BIN_DIR}/${BINARY_NAME} --run-mode local \
 		--service my-app \
 		--environments stg,prod \
 		--lc-before-manifests-path test/local/before/services \
