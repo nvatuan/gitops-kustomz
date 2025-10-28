@@ -19,11 +19,11 @@ type ReportData struct {
 
 // EnvironmentDiff represents diff data for a single environment
 type EnvironmentDiff struct {
-	ContentType      string `json:"contentType"`      // "text" or "ext_ghartifact"
 	LineCount        int    `json:"lineCount"`
 	AddedLineCount   int    `json:"addedLineCount"`
 	DeletedLineCount int    `json:"deletedLineCount"`
-	Content          string `json:"content"`          // diff text OR artifact URL
+	ContentType      string `json:"contentType"` // "text" or "ext_ghartifact"
+	Content          string `json:"content"`     // diff text OR artifact URL
 }
 
 // PolicyEvaluationSummary represents the overall policy evaluation results

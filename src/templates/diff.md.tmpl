@@ -8,7 +8,7 @@
 {{if gt $diff.LineCount 0}}
 {{if eq $diff.ContentType "ext_ghartifact"}}
 📎 **Diff too large to display inline.**  
-View the full diff in the artifact: [`{{$diff.Content}}`](../../actions/runs/${{github.run_id}})
+View the full diff in the artifacts: [Click here to view]({{$diff.Content}})
 
 > **Note**: The diff contains {{$diff.LineCount}} lines and has been uploaded as an artifact for easier review.
 {{else}}

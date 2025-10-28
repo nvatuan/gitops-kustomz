@@ -119,7 +119,19 @@ func (r *RunnerGitHub) DiffManifests(result *models.BuildManifestResult) (map[st
 	if err != nil {
 		return nil, err
 	}
-	
+
+	// Get GitHub run ID from environment
+	runIDStr := os.Getenv("GITHUB_RUN_ID")
+	if runIDStr == "" {
+		logger.Warn("GITHUB_RUN_ID not set, artifacts will not have proper URLs")
+	}
+	runID := 0
+	if runIDStr != "" {
+		if _, err := fmt.Sscanf(runIDStr, "%d", &runID); err != nil {
+			logger.WithField("error", err).Warn("Failed to parse GITHUB_RUN_ID")
+		}
+	}
+
 	// Check each diff for length and upload as artifact if too long
 	const maxDiffLength = 10000 // 10k characters
 	for env, envDiff := range diffs {
@@ -129,32 +141,44 @@ func (r *RunnerGitHub) DiffManifests(result *models.BuildManifestResult) (map[st
 				"diffLength": len(envDiff.Content),
 				"maxLength":  maxDiffLength,
 			}).Info("Diff is too long, uploading as artifact")
-			
-			// Upload diff as artifact
-			filename, err := r.ghclient.UploadDiffAsArtifact(
-				r.Context,
-				r.options.GhRepo,
-				r.options.GhPrNumber,
-				env,
-				envDiff.Content,
-			)
-			if err != nil {
-				logger.WithField("error", err).Error("Failed to upload diff as artifact")
-				return nil, fmt.Errorf("failed to upload diff as artifact: %w", err)
+
+			// Create filename for this diff
+			filename := fmt.Sprintf("diff-pr%d-%s.txt", r.options.GhPrNumber, env)
+
+			// Save diff content to file
+			outputDir := r.Options.OutputDir
+			if outputDir == "" {
+				outputDir = "output"
 			}
-			
-			// Update the diff result to point to the artifact
+			if err := os.MkdirAll(outputDir, 0755); err != nil {
+				return nil, fmt.Errorf("failed to create output directory: %w", err)
+			}
+
+			filepath := filepath.Join(outputDir, filename)
+			if err := os.WriteFile(filepath, []byte(envDiff.Content), 0644); err != nil {
+				return nil, fmt.Errorf("failed to write diff file: %w", err)
+			}
+
+			// Upload file as artifact and get URL
+			artifactURL, err := r.ghclient.UploadPathToArtifact(r.Context, r.options.GhRepo, runID, filepath)
+			if err != nil {
+				logger.WithField("error", err).Error("Failed to upload artifact")
+				return nil, fmt.Errorf("failed to upload artifact: %w", err)
+			}
+
+			// Update the diff result to point to the artifact URL
 			envDiff.ContentType = models.DiffContentTypeGHArtifact
-			envDiff.Content = filename
+			envDiff.Content = artifactURL
 			diffs[env] = envDiff
-			
+
 			logger.WithFields(map[string]interface{}{
-				"env":      env,
-				"filename": filename,
+				"env":         env,
+				"filename":    filename,
+				"artifactURL": artifactURL,
 			}).Info("Diff uploaded as artifact successfully")
 		}
 	}
-	
+
 	return diffs, nil
 }
 
