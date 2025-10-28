@@ -13,6 +13,7 @@ import (
 	"github.com/gh-nvat/gitops-kustomz/src/pkg/models"
 	"github.com/gh-nvat/gitops-kustomz/src/pkg/policy"
 	"github.com/gh-nvat/gitops-kustomz/src/pkg/template"
+	"github.com/gh-nvat/gitops-kustomz/src/pkg/trace"
 
 	log "github.com/sirupsen/logrus"
 )
@@ -78,20 +79,27 @@ func (r *RunnerBase) Initialize() error {
 }
 
 func (r *RunnerBase) BuildManifests(beforePath, afterPath string) (*models.BuildManifestResult, error) {
+	ctx, span := trace.StartSpan(r.Context, "BuildManifests")
+	defer span.End()
+
 	logger.Info("BuildManifests: starting...")
 
 	results := make(map[string]models.BuildEnvManifestResult)
 	envs := r.Options.Environments
 	for _, env := range envs {
+		envCtx, envSpan := trace.StartSpan(ctx, fmt.Sprintf("BuildManifests.%s", env))
+
 		logger.WithField("env", env).WithField("beforePath", beforePath).Info("Building before manifest...")
-		beforeManifest, err := r.Builder.Build(r.Context, beforePath, env)
+		beforeManifest, err := r.Builder.Build(envCtx, beforePath, env)
 		if err != nil {
+			envSpan.End()
 			return nil, err
 		}
 
 		logger.WithField("env", env).WithField("afterPath", afterPath).Info("Building after manifest...")
-		afterManifest, err := r.Builder.Build(r.Context, afterPath, env)
+		afterManifest, err := r.Builder.Build(envCtx, afterPath, env)
 		if err != nil {
+			envSpan.End()
 			return nil, err
 		}
 		results[env] = models.BuildEnvManifestResult{
@@ -101,6 +109,8 @@ func (r *RunnerBase) BuildManifests(beforePath, afterPath string) (*models.Build
 		}
 		logger.WithField("env", env).WithField("beforeManifest", string(beforeManifest)).Debug("Built Manifest")
 		logger.WithField("env", env).WithField("afterManifest", string(afterManifest)).Debug("Built Manifest")
+
+		envSpan.End()
 	}
 
 	logger.Info("BuildManifests: done.")
@@ -110,14 +120,20 @@ func (r *RunnerBase) BuildManifests(beforePath, afterPath string) (*models.Build
 }
 
 func (r *RunnerBase) DiffManifests(result *models.BuildManifestResult) (map[string]models.EnvironmentDiff, error) {
+	ctx, span := trace.StartSpan(r.Context, "DiffManifests")
+	defer span.End()
+
 	logger.Info("DiffManifests: starting...")
 
 	results := make(map[string]models.EnvironmentDiff)
 
 	for env, envResult := range result.EnvManifestBuild {
+		_, envSpan := trace.StartSpan(ctx, fmt.Sprintf("DiffManifests.%s", env))
+
 		diffContent, err := r.Differ.Diff(envResult.BeforeManifest, envResult.AfterManifest)
 		if err != nil {
 			logger.WithField("env", envResult.Environment).WithField("error", err).Error("Failed to diff manifests")
+			envSpan.End()
 			return nil, err
 		}
 		logger.WithField("env", envResult.Environment).WithField("diffContent", diffContent).Debug("Diffed Manifest")
@@ -129,6 +145,8 @@ func (r *RunnerBase) DiffManifests(result *models.BuildManifestResult) (map[stri
 			DeletedLineCount: deletedLines,
 			Content:          diffContent,
 		}
+
+		envSpan.End()
 	}
 
 	logger.Info("DiffManifests: done.")
@@ -136,21 +154,28 @@ func (r *RunnerBase) DiffManifests(result *models.BuildManifestResult) (map[stri
 }
 
 func (r *RunnerBase) EvaluatePolicies(mf *models.BuildManifestResult) (*models.PolicyEvaluateResult, error) {
+	ctx, span := trace.StartSpan(r.Context, "EvaluatePolicies")
+	defer span.End()
 	logger.Info("EvaluatePolicies: starting...")
 
 	results := models.PolicyEvaluateResult{}
 
 	for _, envResult := range mf.EnvManifestBuild {
+		_, envSpan := trace.StartSpan(ctx, fmt.Sprintf("EvaluatePolicies.%s", envResult.Environment))
+
 		// only evaluate the after manifest
 		envManifest := envResult.AfterManifest
-		failMsgs, err := r.Evaluator.Evaluate(r.Context, envManifest)
+		failMsgs, err := r.Evaluator.Evaluate(ctx, envManifest)
 		if err != nil {
+			envSpan.End()
 			return nil, err
 		}
 		results.EnvPolicyEvaluate[envResult.Environment] = models.PolicyEnvEvaluateResult{
 			Environment:            envResult.Environment,
 			PolicyIdToEvalFailMsgs: failMsgs,
 		}
+
+		envSpan.End()
 	}
 
 	logger.Info("EvaluatePolicies: done.")
@@ -158,6 +183,8 @@ func (r *RunnerBase) EvaluatePolicies(mf *models.BuildManifestResult) (*models.P
 }
 
 func (r *RunnerBase) Process() error {
+	_, span := trace.StartSpan(r.Context, "Process")
+	defer span.End()
 	logger.Info("Process: starting...")
 
 	beforePath := filepath.Join(r.Options.LcBeforeManifestsPath, r.Options.Service)
@@ -197,6 +224,9 @@ func (r *RunnerBase) Process() error {
 }
 
 func (r *RunnerBase) Output(data *models.ReportData) error {
+	_, span := trace.StartSpan(r.Context, "Output")
+	defer span.End()
+
 	logger.Info("Output: starting...")
 	if err := r.outputReportJson(data); err != nil {
 		return err

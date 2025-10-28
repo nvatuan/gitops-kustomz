@@ -6,12 +6,13 @@ type Options struct {
 	Debug   bool   // Debug mode
 
 	// Common options
-	Service            string
-	Environments       []string // Support multiple environments
-	PoliciesPath       string
-	TemplatesPath      string
-	OutputDir          string
-	EnableExportReport bool
+	Service                       string
+	Environments                  []string // Support multiple environments
+	PoliciesPath                  string
+	TemplatesPath                 string
+	OutputDir                     string
+	EnableExportReport            bool
+	EnableExportPerformanceReport bool
 
 	// GitHub mode options
 	GhRepo        string

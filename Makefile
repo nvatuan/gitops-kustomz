@@ -66,6 +66,7 @@ run-local: build
 		--templates-path test/local/templates \
 		--output-dir test/output \
 		--enable-export-report true \
+		--enable-export-performance-report true \
 		--debug true;
 	@echo ""
 	@echo "📄 Reports generated:"
@@ -83,6 +84,7 @@ run-github: build
 		--gh-repo moneyforward/tmp-clone_k8s-service-manifests \
 		--gh-pr-number 1 \
 		--enable-export-report true \
+		--enable-export-performance-report true \
 		--output-dir test/output \
 		--manifests-path services \
 		--templates-path test/local/templates \

@@ -248,7 +248,11 @@ func (e *PolicyEvaluator) GeneratePolicyEvalResultForManifests(
 		blockingSuccessCnt, warningSuccessCnt, recommendSuccessCnt, overriddenSuccessCnt, notInEffectSuccessCnt := 0, 0, 0, 0, 0
 		blockingFailedCnt, warningFailedCnt, recommendFailedCnt, overriddenFailedCnt, notInEffectFailedCnt := 0, 0, 0, 0, 0
 
-		var blockingPolicies, warningPolicies, recommendPolicies, overriddenPolicies, notInEffectPolicies []models.PolicyResult
+		blockingPolicies := []models.PolicyResult{}
+		warningPolicies := []models.PolicyResult{}
+		recommendPolicies := []models.PolicyResult{}
+		overriddenPolicies := []models.PolicyResult{}
+		notInEffectPolicies := []models.PolicyResult{}
 		for policyId, result := range envToPolicyIdToResult[env] {
 			totalCnt++
 			if result.IsPassing {
@@ -316,10 +320,12 @@ func (e *PolicyEvaluator) GeneratePolicyEvalResultForManifests(
 				PassRecommendCheck: recommendFailedCnt == 0,
 			},
 			PolicyCounts: models.PolicyCounts{
-				Total:   totalCnt,
-				Success: successCnt,
-				Failed:  failedCnt,
-				Omitted: omittedCnt,
+				TotalCount:          totalCnt,
+				TotalSuccess:        successCnt,
+				TotalFailed:         failedCnt,
+				TotalOmitted:        omittedCnt,
+				TotalOmittedFailed:  overriddenFailedCnt + notInEffectFailedCnt,
+				TotalOmittedSuccess: overriddenSuccessCnt + notInEffectSuccessCnt,
 
 				BlockingSuccessCount:    blockingSuccessCnt,
 				BlockingFailedCount:     blockingFailedCnt,
@@ -327,8 +333,8 @@ func (e *PolicyEvaluator) GeneratePolicyEvalResultForManifests(
 				WarningFailedCount:      warningFailedCnt,
 				RecommendSuccessCount:   recommendSuccessCnt,
 				RecommendFailedCount:    recommendFailedCnt,
-				OmittedSuccessCount:     overriddenSuccessCnt,
-				OmittedFailedCount:      overriddenFailedCnt,
+				OverriddenSuccessCount:  overriddenSuccessCnt,
+				OverriddenFailedCount:   overriddenFailedCnt,
 				NotInEffectSuccessCount: notInEffectSuccessCnt,
 				NotInEffectFailedCount:  notInEffectFailedCnt,
 			},

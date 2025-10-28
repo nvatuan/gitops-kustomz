@@ -10,6 +10,7 @@ import (
 	"github.com/gh-nvat/gitops-kustomz/src/pkg/kustomize"
 	"github.com/gh-nvat/gitops-kustomz/src/pkg/policy"
 	"github.com/gh-nvat/gitops-kustomz/src/pkg/template"
+	"github.com/gh-nvat/gitops-kustomz/src/pkg/trace"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -73,18 +74,25 @@ func run(ctx context.Context, opts *runner.Options) error {
 		log.SetLevel(log.DebugLevel)
 	}
 
+	// Initialize tracer
+	shutdown, err := trace.InitTracer("gitops-kustomz", opts.EnableExportPerformanceReport, opts.OutputDir)
+	if err != nil {
+		return fmt.Errorf("failed to initialize tracer: %w", err)
+	}
+	defer shutdown()
+
 	// Validate options
 	if err := validateOptions(opts); err != nil {
 		return fmt.Errorf("invalid options: %w", err)
 	}
 
 	// Initialize runner
-	runner, err := initialize(ctx, opts)
+	appRunner, err := initialize(ctx, opts)
 	if err != nil {
 		return fmt.Errorf("failed to initialize: %w", err)
 	}
 
-	err = runner.Process()
+	err = appRunner.Process()
 	if err != nil {
 		return fmt.Errorf("failed to process: %w", err)
 	}

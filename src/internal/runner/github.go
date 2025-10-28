@@ -14,6 +14,7 @@ import (
 	"github.com/gh-nvat/gitops-kustomz/src/pkg/models"
 	"github.com/gh-nvat/gitops-kustomz/src/pkg/policy"
 	"github.com/gh-nvat/gitops-kustomz/src/pkg/template"
+	"github.com/gh-nvat/gitops-kustomz/src/pkg/trace"
 )
 
 type RunnerGitHub struct {
@@ -117,29 +118,41 @@ func (r *RunnerGitHub) DiffManifests(result *models.BuildManifestResult) (map[st
 }
 
 func (r *RunnerGitHub) Process() error {
+	ctx, span := trace.StartSpan(r.Context, "Process")
+	defer span.End()
+
 	logger.Info("Process: starting...")
 
 	logger.WithField("repo", r.options.GhRepo).WithField("branch", r.prInfo.BaseRef).Debug("Process: Calling SparseCheckoutAtPath for base commit")
-	checkoutBeforePath, err := r.ghclient.SparseCheckoutAtPath(
-		r.Context, r.options.GhRepo, r.prInfo.BaseRef, r.options.ManifestsPath)
+	_, checkoutBaseSpan := trace.StartSpan(ctx, "GitCheckout.Base")
+	beforePathToSparseCheckout := filepath.Join(r.options.ManifestsPath, r.options.Service)
+	checkedOutBeforePath, err := r.ghclient.SparseCheckoutAtPath(
+		r.Context, r.options.GhRepo, r.prInfo.BaseRef, beforePathToSparseCheckout)
 	if err != nil {
+		checkoutBaseSpan.End()
 		return fmt.Errorf("failed to sparse checkout base commit: %w", err)
 	}
+	checkoutBaseSpan.End()
 	defer func() {
-		_ = os.RemoveAll(checkoutBeforePath)
+		_ = os.RemoveAll(checkedOutBeforePath)
 	}()
-	beforePath := filepath.Join(checkoutBeforePath, r.options.ManifestsPath, r.options.Service)
+	beforePath := filepath.Join(checkedOutBeforePath, r.options.ManifestsPath, r.options.Service)
 
 	logger.WithField("repo", r.options.GhRepo).WithField("headRef", r.prInfo.HeadRef).Info("Sparse checking out manifests")
-	checkoutAfterPath, err := r.ghclient.SparseCheckoutAtPath(
-		r.Context, r.options.GhRepo, r.prInfo.HeadRef, r.options.ManifestsPath)
+	_, checkoutHeadSpan := trace.StartSpan(ctx, "GitCheckout.Head")
+
+	afterPathToSparseCheckout := filepath.Join(r.options.ManifestsPath, r.options.Service)
+	checkedOutAfterPath, err := r.ghclient.SparseCheckoutAtPath(
+		r.Context, r.options.GhRepo, r.prInfo.HeadRef, afterPathToSparseCheckout)
 	if err != nil {
+		checkoutHeadSpan.End()
 		return fmt.Errorf("failed to sparse checkout head commit: %w", err)
 	}
+	checkoutHeadSpan.End()
 	defer func() {
-		_ = os.RemoveAll(checkoutAfterPath)
+		_ = os.RemoveAll(checkedOutAfterPath)
 	}()
-	afterPath := filepath.Join(checkoutAfterPath, r.options.ManifestsPath, r.options.Service)
+	afterPath := filepath.Join(checkedOutAfterPath, r.options.ManifestsPath, r.options.Service)
 
 	rs, err := r.BuildManifests(beforePath, afterPath)
 	if err != nil {
@@ -162,10 +175,13 @@ func (r *RunnerGitHub) Process() error {
 		ghCommentStrings[i] = comment.Body
 	}
 
-	policyEval, err := r.Evaluator.GeneratePolicyEvalResultForManifests(r.Context, *rs, ghCommentStrings)
+	_, evalSpan := trace.StartSpan(ctx, "EvaluatePolicies")
+	policyEval, err := r.Evaluator.GeneratePolicyEvalResultForManifests(ctx, *rs, ghCommentStrings)
 	if err != nil {
+		evalSpan.End()
 		return err
 	}
+	evalSpan.End()
 	logger.WithField("results", policyEval).Debug("Evaluated Policies")
 
 	reportData := models.ReportData{
@@ -185,6 +201,9 @@ func (r *RunnerGitHub) Process() error {
 }
 
 func (r *RunnerGitHub) Output(data *models.ReportData) error {
+	_, span := trace.StartSpan(r.Context, "Output")
+	defer span.End()
+
 	logger.Info("Output: starting...")
 	if err := r.outputReportJson(data); err != nil {
 		return err

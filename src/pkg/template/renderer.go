@@ -37,9 +37,9 @@ func NewRenderer() *Renderer {
 // If templateDir is provided, all required templates must exist (fail-fast, no fallback)
 func (r *Renderer) RenderWithTemplates(templateDir string, data interface{}) (string, error) {
 	// Load all template files
-	commentPath := filepath.Join(templateDir, "comment.md.tmpl")
-	diffPath := filepath.Join(templateDir, "diff.md.tmpl")
-	policyPath := filepath.Join(templateDir, "policy.md.tmpl")
+	commentPath := filepath.Join(templateDir, FileNameCommentTemplate)
+	diffPath := filepath.Join(templateDir, FileNameDiffTemplate)
+	policyPath := filepath.Join(templateDir, FileNamePolicyTemplate)
 
 	// Check if all templates exist - fail fast if any are missing
 	if _, err := os.Stat(commentPath); err != nil {

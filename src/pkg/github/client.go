@@ -186,7 +186,7 @@ func (c *Client) FindToolComment(ctx context.Context, repo string, prNumber int)
 // 3. git checkout branch
 // 4. return directory
 func (c *Client) SparseCheckoutAtPath(ctx context.Context, repo, branch, path string) (string, error) {
-	logger.WithField("repo", repo).WithField("branch", branch).WithField("path", path).Info("Sparse checking out at path")
+	logger.WithField("repo", repo).WithField("branch", branch).WithField("path", path).Info("SparseCheckoutAtPath()")
 
 	// create /tmp at pwd if not exists
 	pwd, err := os.Getwd()

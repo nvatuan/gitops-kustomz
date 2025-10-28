@@ -13,6 +13,7 @@ import (
 	"github.com/gh-nvat/gitops-kustomz/src/pkg/models"
 	"github.com/gh-nvat/gitops-kustomz/src/pkg/policy"
 	"github.com/gh-nvat/gitops-kustomz/src/pkg/template"
+	"github.com/gh-nvat/gitops-kustomz/src/pkg/trace"
 )
 
 type RunnerLocal struct {
@@ -53,6 +54,9 @@ func (r *RunnerLocal) DiffManifests(result *models.BuildManifestResult) (map[str
 }
 
 func (r *RunnerLocal) Process() error {
+	ctx, span := trace.StartSpan(r.Context, "Process")
+	defer span.End()
+
 	logger.Info("Process: starting...")
 
 	beforePath := filepath.Join(r.Options.LcBeforeManifestsPath, r.Options.Service)
@@ -69,10 +73,13 @@ func (r *RunnerLocal) Process() error {
 	}
 	logger.WithField("results", diffs).Debug("Diffed Manifests")
 
-	policyEval, err := r.Evaluator.GeneratePolicyEvalResultForManifests(r.Context, *rs, []string{})
+	_, evalSpan := trace.StartSpan(ctx, "EvaluatePolicies")
+	policyEval, err := r.Evaluator.GeneratePolicyEvalResultForManifests(ctx, *rs, []string{})
 	if err != nil {
+		evalSpan.End()
 		return err
 	}
+	evalSpan.End()
 	logger.WithField("results", policyEval).Debug("Evaluated Policies")
 
 	reportData := models.ReportData{
@@ -92,6 +99,9 @@ func (r *RunnerLocal) Process() error {
 }
 
 func (r *RunnerLocal) Output(data *models.ReportData) error {
+	_, span := trace.StartSpan(r.Context, "Output")
+	defer span.End()
+
 	logger.Info("Output: starting...")
 	if err := r.outputReportJson(data); err != nil {
 		return err
