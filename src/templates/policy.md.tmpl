@@ -101,11 +101,11 @@
 * None! 🙌
 {{end}}
 
-#### ⏭️ Omitted Policies | {{range $env, $sum := .PolicyEvaluation.EnvironmentSummary}} `{{$env}}`: `{{$sum.PolicyCounts.OmittedFailedCount}}`❌ |{{end}}
+#### ⏭️ Omitted Policies | {{range $env, $sum := .PolicyEvaluation.EnvironmentSummary}} `{{$env}}`: `{{$sum.PolicyCounts.TotalOmittedFailed}}`❌ |{{end}}
 
 ##### [`stg`] environment 
 
-{{- if gt .PolicyEvaluation.EnvironmentSummary.stg.PolicyCounts.OmittedFailedCount 0 }}
+{{- if gt .PolicyEvaluation.EnvironmentSummary.stg.PolicyCounts.TotalOmittedFailed 0 }}
 
 {{range $policy := .PolicyEvaluation.PolicyMatrix.stg.OverriddenPolicies}}
 * Policy `{{$policy.PolicyName}}` failed with the following messages:
@@ -125,7 +125,7 @@
 
 ##### [`prod`] environment 
 
-{{- if gt .PolicyEvaluation.EnvironmentSummary.prod.PolicyCounts.OmittedFailedCount 0 }}
+{{- if gt .PolicyEvaluation.EnvironmentSummary.prod.PolicyCounts.TotalOmittedFailed 0 }}
 
 {{range $policy := .PolicyEvaluation.PolicyMatrix.prod.OverriddenPolicies}}
 * Policy `{{$policy.PolicyName}}` failed with the following messages:

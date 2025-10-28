@@ -9,25 +9,20 @@
 
 | Policy Name | stg | prod |
 |-------------|-----|------|
-{{- range $policy := .PolicyEvaluation.PolicyMatrix.stg.BlockingPolicies}}
-| {{$policy.PolicyName}} | {{if $policy.IsPassing}}✅ PASS{{else}}❌ FAIL{{end}} | {{range $prodPolicy := $.PolicyEvaluation.PolicyMatrix.prod.BlockingPolicies}}{{if eq $prodPolicy.PolicyId $policy.PolicyId}}{{if $prodPolicy.IsPassing}}✅ PASS{{else}}❌ FAIL{{end}}{{end}}{{end}} |
-{{- end -}}
-{{- range $policy := .PolicyEvaluation.PolicyMatrix.stg.WarningPolicies}}
-| {{$policy.PolicyName}} | {{if $policy.IsPassing}}✅ PASS{{else}}❌ FAIL{{end}} | {{range $prodPolicy := $.PolicyEvaluation.PolicyMatrix.prod.WarningPolicies}}{{if eq $prodPolicy.PolicyId $policy.PolicyId}}{{if $prodPolicy.IsPassing}}✅ PASS{{else}}❌ FAIL{{end}}{{end}}{{end}} |
-{{- end -}}
-{{- range $policy := .PolicyEvaluation.PolicyMatrix.stg.RecommendPolicies}}
-| {{$policy.PolicyName}} | {{if $policy.IsPassing}}✅ PASS{{else}}❌ FAIL{{end}} | {{range $prodPolicy := $.PolicyEvaluation.PolicyMatrix.prod.RecommendPolicies}}{{if eq $prodPolicy.PolicyId $policy.PolicyId}}{{if $prodPolicy.IsPassing}}✅ PASS{{else}}❌ FAIL{{end}}{{end}}{{end}} |
-{{- end -}}
+{{range $policy := .PolicyEvaluation.PolicyMatrix.stg.BlockingPolicies}}| {{$policy.PolicyName}} | {{if $policy.IsPassing}}✅ PASS{{else}}❌ FAIL{{end}} | {{range $prodPolicy := $.PolicyEvaluation.PolicyMatrix.prod.BlockingPolicies}}{{if eq $prodPolicy.PolicyId $policy.PolicyId}}{{if $prodPolicy.IsPassing}}✅ PASS{{else}}❌ FAIL{{end}}{{end}}{{end}} |
+{{- end}}
+{{range $policy := .PolicyEvaluation.PolicyMatrix.stg.WarningPolicies}}| {{$policy.PolicyName}} | {{if $policy.IsPassing}}✅ PASS{{else}}❌ FAIL{{end}} | {{range $prodPolicy := $.PolicyEvaluation.PolicyMatrix.prod.WarningPolicies}}{{if eq $prodPolicy.PolicyId $policy.PolicyId}}{{if $prodPolicy.IsPassing}}✅ PASS{{else}}❌ FAIL{{end}}{{end}}{{end}} |
+{{- end}}
+{{range $policy := .PolicyEvaluation.PolicyMatrix.stg.RecommendPolicies}}| {{$policy.PolicyName}} | {{if $policy.IsPassing}}✅ PASS{{else}}❌ FAIL{{end}} | {{range $prodPolicy := $.PolicyEvaluation.PolicyMatrix.prod.RecommendPolicies}}{{if eq $prodPolicy.PolicyId $policy.PolicyId}}{{if $prodPolicy.IsPassing}}✅ PASS{{else}}❌ FAIL{{end}}{{end}}{{end}} |
+{{- end}}
 
 </details>
 
-<details> <summary> Details of failing policies: </summary>
+<details> <summary> Failing Policies Details: </summary>
 
-### 🚫 BLOCKING Policies |{{range $env, $sum := .PolicyEvaluation.EnvironmentSummary}} `{{$env}}`: `{{$sum.PolicyCounts.BlockingFailedCount}}`❌ |{{end}}
+#### 🚫 BLOCKING Policies |{{range $env, $sum := .PolicyEvaluation.EnvironmentSummary}} `{{$env}}`: `{{$sum.PolicyCounts.BlockingFailedCount}}`❌ |{{end}}
 
-These policies are blocking your PR merge. Resolve them or override them if applicable. Please note that overriding policies mean you are aware of the risks and consequences of your actions.
-
-#### [`stg`] environment 
+##### [`stg`] environment 
 
 {{- if gt .PolicyEvaluation.EnvironmentSummary.stg.PolicyCounts.BlockingFailedCount 0 }}
 
@@ -42,7 +37,7 @@ These policies are blocking your PR merge. Resolve them or override them if appl
 {{end}}
 
 {{- if gt .PolicyEvaluation.EnvironmentSummary.prod.PolicyCounts.BlockingFailedCount 0 }}
-#### [`prod`] environment 
+##### [`prod`] environment 
 
 {{range $policy := .PolicyEvaluation.PolicyMatrix.prod.BlockingPolicies}}
 * Policy `{{$policy.PolicyName}}` failed with the following messages:
@@ -53,12 +48,10 @@ These policies are blocking your PR merge. Resolve them or override them if appl
 * None! 🙌
 {{end}}
 
-### ⚠️ WARNING Policies | {{range $env, $sum := .PolicyEvaluation.EnvironmentSummary}} `{{$env}}`: `{{$sum.PolicyCounts.WarningFailedCount}}`❌ |{{end}}
-
-These policies failure does not block your PR merge, but only faling the CI status. Please consider fixing them. Please note that overriding policies mean you are aware of the risks and consequences of your actions.
+#### ⚠️ WARNING Policies | {{range $env, $sum := .PolicyEvaluation.EnvironmentSummary}} `{{$env}}`: `{{$sum.PolicyCounts.WarningFailedCount}}`❌ |{{end}}
 
 {{- if gt .PolicyEvaluation.EnvironmentSummary.stg.PolicyCounts.WarningFailedCount 0 }}
-#### [`stg`] environment 
+##### [`stg`] environment 
 
 {{range $policy := .PolicyEvaluation.PolicyMatrix.stg.WarningPolicies}}
 * Policy `{{$policy.PolicyName}}` failed with the following messages:
@@ -70,7 +63,7 @@ These policies failure does not block your PR merge, but only faling the CI stat
 {{end}}
 
 {{- if gt .PolicyEvaluation.EnvironmentSummary.prod.PolicyCounts.WarningFailedCount 0 }}
-#### [`prod`] environment 
+##### [`prod`] environment 
 
 {{range $policy := .PolicyEvaluation.PolicyMatrix.prod.WarningPolicies}}
 * Policy `{{$policy.PolicyName}}` failed with the following messages:
@@ -81,12 +74,10 @@ These policies failure does not block your PR merge, but only faling the CI stat
 * None! 🙌
 {{end}}
 
-### 💡 RECOMMEND Policies | {{range $env, $sum := .PolicyEvaluation.EnvironmentSummary}} `{{$env}}`: `{{$sum.PolicyCounts.RecommendFailedCount}}`❌ |{{end}}
-
-These policies are recommendations. They are not required to be resolved, but you may consider fixing them if applicable for your case.
+#### 💡 RECOMMEND Policies | {{range $env, $sum := .PolicyEvaluation.EnvironmentSummary}} `{{$env}}`: `{{$sum.PolicyCounts.RecommendFailedCount}}`❌ |{{end}}
 
 {{- if gt .PolicyEvaluation.EnvironmentSummary.stg.PolicyCounts.RecommendFailedCount 0 }}
-#### [`stg`] environment 
+##### [`stg`] environment 
 
 {{range $policy := .PolicyEvaluation.PolicyMatrix.stg.RecommendPolicies}}
 * Policy `{{$policy.PolicyName}}` failed with the following messages:
@@ -97,7 +88,7 @@ These policies are recommendations. They are not required to be resolved, but yo
 * None! 🙌
 {{end}}
 
-#### [`prod`] environment 
+##### [`prod`] environment 
 
 {{- if gt .PolicyEvaluation.EnvironmentSummary.prod.PolicyCounts.RecommendFailedCount 0 }}
 
@@ -110,11 +101,9 @@ These policies are recommendations. They are not required to be resolved, but yo
 * None! 🙌
 {{end}}
 
-### ⏭️ Omitted Policies | {{range $env, $sum := .PolicyEvaluation.EnvironmentSummary}} `{{$env}}`: `{{$sum.PolicyCounts.TotalOmittedFailed}}`❌ |{{end}}
+#### ⏭️ Omitted Policies | {{range $env, $sum := .PolicyEvaluation.EnvironmentSummary}} `{{$env}}`: `{{$sum.PolicyCounts.TotalOmittedFailed}}`❌ |{{end}}
 
-These policies are omitted. They are evaluated but the results are not considered. Usually these are policies that you have overriden, or policies that has yet to be in effect yet (not date yet).
-
-#### [`stg`] environment 
+##### [`stg`] environment 
 
 {{- if gt .PolicyEvaluation.EnvironmentSummary.stg.PolicyCounts.TotalOmittedFailed 0 }}
 
@@ -134,7 +123,7 @@ These policies are omitted. They are evaluated but the results are not considere
 * None! 🙌
 {{end}}
 
-#### [`prod`] environment 
+##### [`prod`] environment 
 
 {{- if gt .PolicyEvaluation.EnvironmentSummary.prod.PolicyCounts.TotalOmittedFailed 0 }}
 
