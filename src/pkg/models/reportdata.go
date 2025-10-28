@@ -83,7 +83,8 @@ type PolicyMatrix struct {
 type PolicyResult struct {
 	PolicyId     string   `json:"policyId"`
 	PolicyName   string   `json:"policyName"`
-	IsPassing    bool     `json:"isPassing"` // true or false, if false it means FailMessages is not empty
+	ExternalLink string   `json:"externalLink,omitempty"` // Optional link to policy documentation
+	IsPassing    bool     `json:"isPassing"`              // true or false, if false it means FailMessages is not empty
 	FailMessages []string `json:"failMessages"`
 }
 
