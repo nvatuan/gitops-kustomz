@@ -7,19 +7,16 @@
 
 {{if gt $diff.LineCount 0}}
 {{if eq $diff.ContentType "ext_ghartifact"}}
-📎 **Diff too large to display inline.**  
-View the full diff in the artifacts: [Click here to view]({{$diff.Content}})
-
-> **Note**: The diff contains {{$diff.LineCount}} lines and has been uploaded as an artifact for easier review.
+📎 Diff too large to display inline.
+{{- if eq $diff.Content ""}}
+ View the full diff in the workflow run's artifacts.
+{{- else}}
+ View the full diff [in the workflow run's artifacts]({{$diff.Content}})
+{{- end}}
 {{else}}
-<details open>
-<summary>Click to expand {{$env}} diff</summary>
-
 ```diff
 {{$diff.Content}}
 ```
-
-</details>
 {{end}}
 {{else}}
 ✅ No changes detected.

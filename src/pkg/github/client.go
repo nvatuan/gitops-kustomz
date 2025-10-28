@@ -35,8 +35,6 @@ type GitHubClient interface {
 	FindToolComment(ctx context.Context, repo string, prNumber int) (*models.Comment, error)
 	// SparseCheckoutAtPath clones with treeless and sparse checks out specific ref at path
 	SparseCheckoutAtPath(ctx context.Context, cloneURL, ref, path string) (string, error)
-	// UploadPathToArtifact uploads a file path as a GitHub artifact and returns the artifact URL
-	UploadPathToArtifact(ctx context.Context, repo string, runID int, filepath string) (string, error)
 }
 
 // Client handles GitHub API interactions using go-github
@@ -284,50 +282,4 @@ func (c *Client) SparseCheckoutAtPath(ctx context.Context, repo, branch, path st
 	// }
 
 	return absPath, nil
-}
-
-// UploadPathToArtifact uploads a file as a GitHub artifact using the GitHub API
-// Returns the artifact URL that can be used in PR comments
-func (c *Client) UploadPathToArtifact(ctx context.Context, repo string, runID int, filepath string) (string, error) {
-	owner, repoName, err := ParseOwnerRepo(repo)
-	if err != nil {
-		return "", fmt.Errorf("failed to parse repository: %w", err)
-	}
-
-	// Read the file content
-	content, err := os.ReadFile(filepath)
-	if err != nil {
-		return "", fmt.Errorf("failed to read file: %w", err)
-	}
-
-	// Get the filename from the path
-	filename := filepath[len(filepath)-1:]
-	if idx := strings.LastIndex(filepath, "/"); idx >= 0 {
-		filename = filepath[idx+1:]
-	}
-
-	// Use GitHub Actions artifact API
-	// Note: The go-github library doesn't have direct artifact upload support yet
-	// We need to use the Actions API endpoint directly
-	artifactName := filename
-
-	logger.WithFields(log.Fields{
-		"filepath":     filepath,
-		"filename":     filename,
-		"artifactName": artifactName,
-		"owner":        owner,
-		"repo":         repoName,
-		"runID":        runID,
-	}).Info("Uploading artifact via GitHub API")
-
-	// For now, return the URL format that GitHub Actions uses
-	// The actual upload will be handled by GitHub Actions workflow step
-	artifactURL := fmt.Sprintf("https://github.com/%s/%s/actions/runs/%d", owner, repoName, runID)
-
-	logger.WithFields(log.Fields{
-		"artifactURL": artifactURL,
-		"size":        len(content),
-	}).Info("Artifact URL generated")
-
-	return artifactURL, nil
 }
