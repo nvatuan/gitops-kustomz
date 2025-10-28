@@ -152,11 +152,11 @@ func (r *RunnerGitHub) DiffManifests(result *models.BuildManifestResult) (map[st
 	}
 
 	for env, envDiff := range diffs {
-		if len(envDiff.Content) > GH_COMMENT_MAX_DIFF_LENGTH {
+		if len(envDiff.Content) > githubCommentMaxDiffLength {
 			logger.WithFields(map[string]interface{}{
 				"env":        env,
 				"diffLength": len(envDiff.Content),
-				"maxLength":  GH_COMMENT_MAX_DIFF_LENGTH,
+				"maxLength":  githubCommentMaxDiffLength,
 			}).Info("Diff is too long, uploading as artifact")
 
 			// Create filename for this diff
