@@ -82,9 +82,8 @@ func InitTracer(serviceName string, enabled bool, outDir string) (func(), error)
 	shutdown := func() {
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
-		if err := tp.Shutdown(ctx); err != nil {
-			// Silently fail
-		}
+		// Silently fail
+		_ = tp.Shutdown(ctx)
 		// Export report silently
 		_ = ExportReport()
 	}
