@@ -1,0 +1,13 @@
+FEATURES
+- [x] kustomize upload artifact if too long
+- [ ] document for policy
+- [ ] Rework the template a bit more
+
+MAINTENANCE
+- [ ] unit testings and coverage
+- [ ] check the bug if we use `./` prefix for --manifest-path
+
+OPTIMIZATION
+- [ ] parallel as much as possible with goroutine
+- [ ] do profilling measure performance
+- [ ] optmize github calling API esp. the Comments fetching
