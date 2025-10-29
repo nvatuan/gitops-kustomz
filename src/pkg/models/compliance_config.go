@@ -10,11 +10,12 @@ type ComplianceConfig struct {
 
 // PolicyConfig represents a single policy configuration
 type PolicyConfig struct {
-	Name        string            `yaml:"name"`
-	Description string            `yaml:"description"`
-	Type        string            `yaml:"type"` // "opa" only for now
-	FilePath    string            `yaml:"filePath"`
-	Enforcement EnforcementConfig `yaml:"enforcement"`
+	Name         string            `yaml:"name"`
+	Description  string            `yaml:"description"`
+	Type         string            `yaml:"type"` // "opa" only for now
+	FilePath     string            `yaml:"filePath"`
+	ExternalLink string            `yaml:"externalLink,omitempty"` // Optional link to policy documentation
+	Enforcement  EnforcementConfig `yaml:"enforcement"`
 }
 
 // EnforcementConfig defines when and how a policy should be enforced

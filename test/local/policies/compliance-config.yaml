@@ -4,6 +4,7 @@ policies:
     description: Ensures deployments meeting high availability criteria
     type: opa
     filePath: ha.rego
+    externalLink: https://example.com/docs/high-availability
 
     enforcement:
       inEffectAfter: null

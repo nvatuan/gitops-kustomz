@@ -221,6 +221,7 @@ func (e *PolicyEvaluator) GeneratePolicyEvalResultForManifests(
 			polResult := models.PolicyResult{
 				PolicyId:     policyId,
 				PolicyName:   policy.Name,
+				ExternalLink: policy.ExternalLink,
 				IsPassing:    len(failMsgs) == 0,
 				FailMessages: failMsgs,
 			}
