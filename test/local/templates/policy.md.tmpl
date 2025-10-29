@@ -7,6 +7,7 @@
 
 <details> <summary> Policy Evaluation Matrix: </summary>
 
+<<<<<<< Updated upstream
 | Policy Name | stg | prod |
 |-------------|-----|------|
 {{range $policy := .PolicyEvaluation.PolicyMatrix.stg.BlockingPolicies}}| {{if $policy.ExternalLink}}[{{$policy.PolicyName}}]({{$policy.ExternalLink}}){{else}}{{$policy.PolicyName}}{{end}} | {{if $policy.IsPassing}}✅ PASS{{else}}❌ FAIL{{end}} | {{range $prodPolicy := $.PolicyEvaluation.PolicyMatrix.prod.BlockingPolicies}}{{if eq $prodPolicy.PolicyId $policy.PolicyId}}{{if $prodPolicy.IsPassing}}✅ PASS{{else}}❌ FAIL{{end}}{{end}}{{end}} |
@@ -14,6 +15,19 @@
 {{range $policy := .PolicyEvaluation.PolicyMatrix.stg.WarningPolicies}}| {{if $policy.ExternalLink}}[{{$policy.PolicyName}}]({{$policy.ExternalLink}}){{else}}{{$policy.PolicyName}}{{end}} | {{if $policy.IsPassing}}✅ PASS{{else}}❌ FAIL{{end}} | {{range $prodPolicy := $.PolicyEvaluation.PolicyMatrix.prod.WarningPolicies}}{{if eq $prodPolicy.PolicyId $policy.PolicyId}}{{if $prodPolicy.IsPassing}}✅ PASS{{else}}❌ FAIL{{end}}{{end}}{{end}} |
 {{end -}}
 {{range $policy := .PolicyEvaluation.PolicyMatrix.stg.RecommendPolicies}}| {{if $policy.ExternalLink}}[{{$policy.PolicyName}}]({{$policy.ExternalLink}}){{else}}{{$policy.PolicyName}}{{end}} | {{if $policy.IsPassing}}✅ PASS{{else}}❌ FAIL{{end}} | {{range $prodPolicy := $.PolicyEvaluation.PolicyMatrix.prod.RecommendPolicies}}{{if eq $prodPolicy.PolicyId $policy.PolicyId}}{{if $prodPolicy.IsPassing}}✅ PASS{{else}}❌ FAIL{{end}}{{end}}{{end}} |
+=======
+| Policy Name | Level | stg | prod |
+|-------------|-------|-----|------|
+{{range $policy := .PolicyEvaluation.PolicyMatrix.stg.BlockingPolicies}}| {{if $policy.ExternalLink}}[{{$policy.PolicyName}}]({{$policy.ExternalLink}}){{else}}{{$policy.PolicyName}}{{end}} | 🚫 | {{if $policy.IsPassing}}✅ PASS{{else}}❌ FAIL{{end}} | {{range $prodPolicy := $.PolicyEvaluation.PolicyMatrix.prod.BlockingPolicies}}{{if eq $prodPolicy.PolicyId $policy.PolicyId}}{{if $prodPolicy.IsPassing}}✅ PASS{{else}}❌ FAIL{{end}}{{end}}{{end}} |
+{{end -}}
+{{range $policy := .PolicyEvaluation.PolicyMatrix.stg.WarningPolicies}}| {{if $policy.ExternalLink}}[{{$policy.PolicyName}}]({{$policy.ExternalLink}}){{else}}{{$policy.PolicyName}}{{end}} | ⚠️ | {{if $policy.IsPassing}}✅ PASS{{else}}❌ FAIL{{end}} | {{range $prodPolicy := $.PolicyEvaluation.PolicyMatrix.prod.WarningPolicies}}{{if eq $prodPolicy.PolicyId $policy.PolicyId}}{{if $prodPolicy.IsPassing}}✅ PASS{{else}}❌ FAIL{{end}}{{end}}{{end}} |
+{{end -}}
+{{range $policy := .PolicyEvaluation.PolicyMatrix.stg.RecommendPolicies}}| {{if $policy.ExternalLink}}[{{$policy.PolicyName}}]({{$policy.ExternalLink}}){{else}}{{$policy.PolicyName}}{{end}} | 💡 | {{if $policy.IsPassing}}✅ PASS{{else}}❌ FAIL{{end}} | {{range $prodPolicy := $.PolicyEvaluation.PolicyMatrix.prod.RecommendPolicies}}{{if eq $prodPolicy.PolicyId $policy.PolicyId}}{{if $prodPolicy.IsPassing}}✅ PASS{{else}}❌ FAIL{{end}}{{end}}{{end}} |
+{{end -}}
+{{range $policy := .PolicyEvaluation.PolicyMatrix.stg.OverriddenPolicies}}| {{if $policy.ExternalLink}}[{{$policy.PolicyName}}]({{$policy.ExternalLink}}){{else}}{{$policy.PolicyName}}{{end}} | ⏭️ | {{if $policy.IsPassing}}✅ PASS{{else}}❌ FAIL{{end}} | {{range $prodPolicy := $.PolicyEvaluation.PolicyMatrix.prod.OverriddenPolicies}}{{if eq $prodPolicy.PolicyId $policy.PolicyId}}{{if $prodPolicy.IsPassing}}✅ PASS{{else}}❌ FAIL{{end}}{{end}}{{end}} |
+{{end -}}
+{{range $policy := .PolicyEvaluation.PolicyMatrix.stg.NotInEffectPolicies}}| {{if $policy.ExternalLink}}[{{$policy.PolicyName}}]({{$policy.ExternalLink}}){{else}}{{$policy.PolicyName}}{{end}} | ⏭️ | {{if $policy.IsPassing}}✅ PASS{{else}}❌ FAIL{{end}} | {{range $prodPolicy := $.PolicyEvaluation.PolicyMatrix.prod.NotInEffectPolicies}}{{if eq $prodPolicy.PolicyId $policy.PolicyId}}{{if $prodPolicy.IsPassing}}✅ PASS{{else}}❌ FAIL{{end}}{{end}}{{end}} |
+>>>>>>> Stashed changes
 {{end}}
 
 </details>
